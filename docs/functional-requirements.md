@@ -3,6 +3,11 @@
 ## 1. システム概要 (System Overview)
 本システムは、Chromebook、Windows、Mac等のChromeブラウザおよびPWA（Progressive Web Apps）の利用時間を詳細に監視・集計するツールである。Googleファミリーリンクがカバーしきれない「ブラウザ内アクティビティ」を補完し、保護者へリアルタイムな利用状況を提供する。
 
+システムは以下の3コンポーネントで構成される:
+1. **Chrome Extension** — 子供デバイス側で監視対象ドメインの滞在時間を計測・送信
+2. **Next.js API (Backend)** — Cloud Run上で稼働し、デバイス認証・ログ保存を担当
+3. **React Native (Expo) モバイルアプリ** — 保護者がリアルタイムに利用状況を閲覧
+
 ---
 
 ## 2. 技術スタック (Technology Stack)
@@ -12,6 +17,38 @@
 * **モバイルアプリ (閲覧)**: **React Native (Expo)**
 * **認証**: Firebase Auth (Google SSO)
 * **ホスティング/インフラ**: Google Cloud Platform (GCP)
+
+---
+
+## 2.1 プロジェクト構成 (Project Structure)
+
+```
+cb-monitor-extension/
+├── .github/
+│   └── copilot-instructions.md
+├── docs/
+│   ├── adr/                # Architecture Decision Records
+│   ├── FunctionalRequirements.md
+│   └── copilot-instructions.md.example
+├── extension/              # Chrome Extension (Manifest V3)
+│   ├── manifest.json
+│   ├── background/         # Service Worker (tracking logic)
+│   ├── popup/              # Extension popup UI
+│   ├── options/            # Options/settings page (OTP input etc.)
+│   └── utils/              # Shared utilities
+├── backend/                # Next.js App Router API
+│   ├── app/
+│   │   └── api/            # API Routes
+│   ├── lib/                # Shared server utilities (Firestore client, etc.)
+│   └── package.json
+├── mobile/                 # React Native (Expo) app
+│   ├── app/                # Expo Router screens
+│   ├── components/         # Reusable UI components
+│   ├── hooks/              # Custom hooks
+│   ├── lib/                # Firebase client, utilities
+│   └── package.json
+└── README.md
+```
 
 ---
 
