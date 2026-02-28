@@ -53,6 +53,11 @@ Web利用時間トラッカー — Chromebook・Windows・Mac等のChromeブラ�
 
 ## Development Workflow
 
+### DevContainer Development
+- **すべての開発はDevContainer内で完結させる**。ホストマシンの環境は一切汚さない（Node.js 等もホストにはインストールしない）
+- テスト実行・ビルド・Firebase Emulators 起動等、すべてのコマンドはコンテナ内で実行する
+- コンテナ設定に不足がある場合は `.devcontainer/devcontainer.json` や `.devcontainer/Dockerfile` を適宜更新する
+
 ### Design-First Process
 
 **開発着手前の準備（必須）:**

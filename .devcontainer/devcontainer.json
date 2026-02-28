@@ -1,0 +1,49 @@
+{
+  "name": "cb-monitor-extension",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+
+  // Dev Container Features
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+
+  // VS Code 拡張機能
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "GitHub.copilot",
+        "GitHub.copilot-chat"
+      ],
+      "settings": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+          "source.fixAll.eslint": "explicit"
+        }
+      }
+    }
+  },
+
+  // Firebase Emulators のポート転送
+  "forwardPorts": [
+    4000,  // Emulator Suite UI
+    5001,  // Firebase Functions
+    8080,  // Firestore Emulator
+    9099,  // Auth Emulator
+    9199   // Storage Emulator
+  ],
+  "portsAttributes": {
+    "4000": { "label": "Firebase Emulator UI", "onAutoForward": "notify" },
+    "5001": { "label": "Firebase Functions", "onAutoForward": "silent" },
+    "8080": { "label": "Firestore Emulator", "onAutoForward": "silent" },
+    "9099": { "label": "Auth Emulator", "onAutoForward": "silent" },
+    "9199": { "label": "Storage Emulator", "onAutoForward": "silent" }
+  },
+
+  // コンテナ作成後に実行するコマンド
+  "postCreateCommand": "echo '✅ DevContainer ready. Run firebase emulators:start to start local dev.'"
+}
