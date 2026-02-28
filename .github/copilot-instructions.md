@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Web利用時間トラッカー — Chromebook・Windows・Mac等のChromeブラウザおよびPWAの利用時間を詳細に監視・集計するツール。システム構成・技術スタック・プロジェクト構造の詳細は `docs/FunctionalRequirements.md` を参照。
+Web利用時間トラッカー — Chromebook・Windows・Mac等のChromeブラウザおよびPWAの利用時間を詳細に監視・集計するツール。システム構成・技術スタック・プロジェクト構造の詳細は `docs/functional-requirements.md` を参照。
 
 ## Coding Conventions
 
