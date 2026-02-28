@@ -242,8 +242,9 @@ export async function sendUsageLogs(endpoint, logs) { ... }
 
 ### 3.1 プロジェクトセットアップ
 
+DevContainer に Firebase CLI がプリインストール済みであるため、以下を実行するだけでよい。
+
 ```bash
-npm install -g firebase-tools
 firebase init functions  # TypeScript を選択
 ```
 
@@ -340,9 +341,9 @@ export function getDb(): FirebaseFirestore.Firestore {
 
 | 変数名 | 必須 | 説明 |
 |--------|------|------|
-| `GOOGLE_APPLICATION_CREDENTIALS` | ローカルのみ | サービスアカウントキーの JSON パス |
+| `GOOGLE_APPLICATION_CREDENTIALS` | ローカルのみ | サービスアカウントキーの JSON パス（Emulator 使用時は不要） |
 
-Firebase Functions 環境ではデフォルトサービスアカウントが自動的に使用される。
+Firebase Functions 環境ではデフォルトサービスアカウントが自動的に使用される。DevContainer + Firebase Emulator での開発時は、サービスアカウントキーは不要。
 
 ---
 
@@ -372,25 +373,32 @@ interface UsageLogDocument {
 
 ### 5.1 前提条件
 
-- Node.js 20+
+- DevContainer が起動済みであること（Node.js 20、Firebase CLI、Java 21 はコンテナ内にプリインストール済み）
 - GCP プロジェクト作成済み
 - Firebase プロジェクト作成済み（Firestore 有効化済み）
-- Firebase サービスアカウントキー取得済み
+
+> **注意**: すべての開発は DevContainer 内で完結させる。ホストマシンに Node.js 等をインストールする必要はない。
 
 ### 5.2 セットアップ手順
 
 ```bash
+# DevContainer を起動（VS Code で「Reopen in Container」を選択）
+
 # Firebase Functions
 cd functions
 npm install
+
+# Firebase Emulators 起動
 firebase emulators:start --only functions,firestore
+# Emulator Suite UI: http://localhost:4000
 # Functions emulator: http://localhost:5001
 # Firestore emulator: http://localhost:8080
+# → ポートは devcontainer.json で自動転送される
 
 # Extension
 # Chrome で chrome://extensions を開く
 # 「パッケージ化されていない拡張機能を読み込む」→ extension/ フォルダを指定
-# Options ページで API エンドポイントを http://localhost:5001/<project>/us-central1/usageLogs に設定
+# Options ページで API エンドポイントを emulator URL に設定
 ```
 
 ### 5.3 動作確認手順

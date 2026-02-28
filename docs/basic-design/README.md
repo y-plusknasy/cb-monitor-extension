@@ -492,7 +492,7 @@ interface DeviceInfo {
 
 | スプリント | 内容 | 成果物 |
 |-----------|------|--------|
-| S04 | Firestore TTL・セキュリティルール・Cloud Run デプロイ | 本番環境で安全に運用できる状態 |
+| S04 | Firestore TTL・セキュリティルール・デプロイ自動化 | 本番環境で安全に運用できる状態 |
 
 ---
 
@@ -504,3 +504,4 @@ interface DeviceInfo {
 | コスト最適化 | Firebase Functions のイベント駆動課金（アイドル時ゼロコスト）。Firestore TTL で `usageLogs` 30日 / `dailyLogs` 6ヶ月で自動削除。dailyLogs は日次バッチ集計で Firestore 書き込み回数を削減 |
 | スケーラビリティ | Firebase Functions のオートスケール。Firestore のネイティブスケーリング |
 | 可用性 | GCP マネージドサービスの SLA に依存。Extension 側はオフライン時のローカルバッファリングを検討（Phase 3） |
+| 開発環境 | DevContainer で開発環境を統一。Node.js 20、Firebase CLI、Java 21（Emulator 用）をコンテナに事前インストール。ホストマシンの環境を汚さず、チーム間で環境差異を排除 |
