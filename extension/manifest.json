@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "Web Usage Tracker",
+  "version": "0.1.0",
+  "description": "ブラウザ利用時間を監視・記録する拡張機能",
+  "permissions": ["tabs", "storage", "alarms"],
+  "background": {
+    "service_worker": "background/service-worker.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "options_page": "options/options.html",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

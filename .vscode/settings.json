@@ -1,0 +1,12 @@
+{
+  "chat.tools.terminal.autoApprove": {
+    "/^mkdir -p functions/src/lib$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "/^cd /workspaces/cb-monitor-extension/functions && npm install$/": {
+      "approve": true,
+      "matchCommandLine": true
+    }
+  }
+}

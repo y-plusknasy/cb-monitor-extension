@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Build output
+functions/dist/
+
+# Firebase
+firebase-debug.log
+firebase-debug.*.log
+firestore-debug.log
+ui-debug.log
+
+# IDE
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

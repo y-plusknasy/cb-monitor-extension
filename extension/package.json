@@ -1,0 +1,13 @@
+{
+  "name": "cb-monitor-extension",
+  "version": "0.1.0",
+  "description": "Chrome Extension for Web Usage Tracker — テスト用",
+  "private": true,
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "vitest": "^3.0.0"
+  }
+}
