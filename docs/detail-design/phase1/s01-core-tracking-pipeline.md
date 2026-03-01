@@ -5,7 +5,7 @@
 > **作成日**: 2026-02-28  
 > **最終更新**: 2026-03-01  
 > **ステータス**: Active  
-> **関連ADR**: [ADR-001 日次利用バッファ設計](../../adr/ADR-001-daily-usage-buffer-design.md)
+> **関連ADR**: [ADR-001 日次利用バッファ設計](../../adr/ADR-001-daily-usage-buffer-design.md), [ADR-002 Unknown appName 収集ポリシーと etag 送信最適化](../../adr/ADR-002-unknown-appname-and-etag-optimization.md)
 
 ---
 
@@ -22,6 +22,8 @@
 - Firestore — `usageLogs` コレクションへの upsert 書き込み
 - deviceId の自動生成・永続保存
 - chrome.storage.local を用いた状態永続化（Service Worker ライフサイクル対応）
+- 種別不明ウィンドウの `"unknown"` としての利用時間計測（ADR-002）
+- etag による送信差分検出・不要API送信の抑止（ADR-002）
 
 **含まない（後続スプリントで対応）:**
 
@@ -56,7 +58,7 @@
   "version": "0.1.0",
   "description": "ブラウザ利用時間を監視・記録する拡張機能",
   "permissions": ["tabs", "storage", "alarms"],
-  "host_permissions": ["https://*.googleapis.com/*"],
+  "host_permissions": ["http://localhost/*", "https://*.cloudfunctions.net/*"],
   "background": {
     "service_worker": "background/service-worker.js",
     "type": "module"
@@ -93,6 +95,7 @@ Manifest V3 の Service Worker はアイドル状態で Chrome にいつでも�
 | `trackingSession` | `{appName, startTime} \| null`                                       | 現在計測中のセッション情報          |
 | `dailyUsage`      | `{[date: string]: {[appName: string]: {totalSeconds, lastUpdated}}}` | 日次利用バッファ                    |
 | `sentDates`       | `string[]`                                                           | 送信済み日付のリスト                |
+| `lastSentEtag`    | `string`                                                             | 前回送信時の etag（差分検出用）     |
 
 #### インメモリ状態（Service Worker 起動中のみ）
 
@@ -143,8 +146,9 @@ const state = {
    a. Chrome が非アクティブ。flushUsageData() で当日分含む未送信データ送信
 3. chrome.windows.get(windowId) でウィンドウ情報を取得
 4. determineAppName(window, tabs) で appName を決定:
-   a. window.type == "app" or "popup" → アクティブタブの URL からドメイン抽出 = appName
+   a. window.type == "app" or "popup" → アクティブタブの URL からドメイン抽出 = appName（取得不可の場合は "unknown"）
    b. window.type == "normal" → appName = "chrome"
+   c. それ以外のウィンドウタイプ → appName = "unknown"（利用時間として計測対象に含める）
 5. startTracking(appName)
 ```
 
@@ -167,16 +171,19 @@ const state = {
 2. dailyUsage の中から送信対象を抽出:
    - 当日分: 毎回送信（最新の累積値で upsert）
    - 過去日付: sentDates に含まれない場合のみ
-3. 各日付のアプリごとに日次サマリーを API に送信:
+3. 送信対象データの etag（djb2 ハッシュ）を計算
+4. chrome.storage.local の lastSentEtag と比較 → 一致すれば送信スキップ（ADR-002）
+5. 各日付のアプリごとに日次サマリーを API に送信:
    { deviceId, date, appName, totalSeconds, lastUpdated }
-4. 過去日付のみ送信成功で sentDates に追加（当日分は記録しない — 毎回再送するため）
-5. 1件でも失敗したら残りも中断（次回アラームでリトライ）
+6. 過去日付のみ送信成功で sentDates に追加（当日分は記録しない — 毎回再送するため）
+7. 送信成功後、新しい etag を lastSentEtag に保存
+8. 1件でも失敗したら残りも中断（次回アラームでリトライ）
 ```
 
 #### リトライポリシー
 
 - 送信失敗時は sentDates に記録しない → 次回アラームで自動リトライ
-- 当日分は 60秒ごとに毎回サーバーに送信（モバイルアプリからリアルタイム参照可能）
+- 当日分は 60秒ごとにサーバーに送信（ただし etag が前回と同一の場合はスキップ。ADR-002）
 - 日付データのバッファ保持期間: 4日間（当日含む）
 - 保持期間超過分はガベージコレクションで自動削除
 - ネットワークエラー時はコンソールログに記録（ユーザー通知なし）
@@ -230,6 +237,12 @@ export const STORAGE_KEY_SENT_DATES = "sentDates";
 /** Chrome ブラウザ全体の appName */
 export const APP_NAME_CHROME_BROWSER = "chrome";
 
+/** 種別不明のウィンドウに対する appName（ADR-002） */
+export const APP_NAME_UNKNOWN = "unknown";
+
+/** chrome.storage のキー: 前回送信時の etag（差分検出用、ADR-002） */
+export const STORAGE_KEY_LAST_SENT_ETAG = "lastSentEtag";
+
 /** アラーム名 */
 export const ALARM_NAME_FLUSH = "flushLogs";
 
@@ -254,10 +267,11 @@ export async function setStorage(key, value) { ... }
 
 ```javascript
 export function extractDomain(url) { ... }
-export function determineAppName(win, tabs) { ... }
+export function determineAppName(win, tabs) { ... }  // null の代わりに "unknown" を返す（ADR-002）
 export function getToday(now?) { ... }           // → "YYYY-MM-DD"
 export function addUsageToDailyBuffer(dailyUsage, date, appName, seconds) { ... }
 export function pruneOldDates(dailyUsage, retentionDays, now?) { ... }
+export function computeDailyUsageEtag(dailyUsage) { ... }  // djb2 ハッシュによる差分検出（ADR-002）
 ```
 
 **api.js**
@@ -407,7 +421,7 @@ interface UsageLogDocument {
   parentId: string; // S01 では "unlinked" 固定
   deviceId: string; // UUID
   date: string; // "YYYY-MM-DD"
-  appName: string; // PWA: ドメイン名 / ブラウザ: "chrome"
+  appName: string; // PWA: ドメイン名 / ブラウザ: "chrome" / 判別不能: "unknown"
   totalSeconds: number; // その日のアプリ累積利用秒数
   lastUpdated: Timestamp; // Extension 側の最終更新日時
   expireAt: Timestamp; // date + 30日 (TTL 用)
@@ -473,6 +487,7 @@ firebase emulators:start --only functions,firestore
 | `getToday(now?)`              | YYYY-MM-DD 形式の日付文字列を返す (3テスト)      | Vitest         |
 | `addUsageToDailyBuffer()`     | 日次バッファへの加算・イミュータブル性 (4テスト) | Vitest         |
 | `pruneOldDates()`             | ガベージコレクション (3テスト)                   | Vitest         |
+| `computeDailyUsageEtag()`     | etag 計算・差分検出の正確性 (4テスト)            | Vitest         |
 | `usageLogSchema` (Zod)        | 正常/異常リクエストのバリデーション (12テスト)   | Vitest         |
 
 ### 6.2 手動テスト
@@ -527,7 +542,8 @@ functions/
 
 docs/
 ├── adr/
-│   └── ADR-001-daily-usage-buffer-design.md
+│   ├── ADR-001-daily-usage-buffer-design.md
+│   └── ADR-002-unknown-appname-and-etag-optimization.md
 └── detail-design/
     └── phase1/
         └── s01-core-tracking-pipeline.md

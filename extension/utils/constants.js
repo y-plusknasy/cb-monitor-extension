@@ -23,6 +23,12 @@ export const STORAGE_KEY_SENT_DATES = "sentDates";
 /** Chrome ブラウザ全体の appName */
 export const APP_NAME_CHROME_BROWSER = "chrome";
 
+/** 種別不明のウィンドウに対する appName */
+export const APP_NAME_UNKNOWN = "unknown";
+
+/** chrome.storage のキー: 前回送信時の etag（差分検出用） */
+export const STORAGE_KEY_LAST_SENT_ETAG = "lastSentEtag";
+
 /** アラーム名: ログ定期送信 */
 export const ALARM_NAME_FLUSH = "flushLogs";
 

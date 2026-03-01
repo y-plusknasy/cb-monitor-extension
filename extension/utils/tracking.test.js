@@ -8,6 +8,7 @@ import {
   getToday,
   addUsageToDailyBuffer,
   pruneOldDates,
+  computeDailyUsageEtag,
 } from "./tracking.js";
 
 describe("extractDomain", () => {
@@ -57,20 +58,20 @@ describe("determineAppName", () => {
     expect(determineAppName({ type: "popup" }, tabs)).toBe("www.duolingo.com");
   });
 
-  it("type=app でタブがない場合は null を返す", () => {
-    expect(determineAppName({ type: "app" }, [])).toBe(null);
+  it("type=app でタブがない場合は 'unknown' を返す", () => {
+    expect(determineAppName({ type: "app" }, [])).toBe("unknown");
   });
 
-  it("type=app でタブに URL がない場合は null を返す", () => {
-    expect(determineAppName({ type: "app" }, [{}])).toBe(null);
+  it("type=app でタブに URL がない場合は 'unknown' を返す", () => {
+    expect(determineAppName({ type: "app" }, [{}])).toBe("unknown");
   });
 
   it("win が null の場合は null を返す", () => {
     expect(determineAppName(null, [])).toBe(null);
   });
 
-  it("未知のウィンドウタイプの場合は null を返す", () => {
-    expect(determineAppName({ type: "devtools" }, [])).toBe(null);
+  it("未知のウィンドウタイプの場合は 'unknown' を返す", () => {
+    expect(determineAppName({ type: "devtools" }, [])).toBe("unknown");
   });
 });
 
@@ -184,5 +185,67 @@ describe("pruneOldDates", () => {
   it("空のバッファは空を返す", () => {
     const result = pruneOldDates({}, 4, new Date());
     expect(Object.keys(result)).toHaveLength(0);
+  });
+});
+
+describe("computeDailyUsageEtag", () => {
+  it("同じ内容なら同じ etag を返す", () => {
+    const data = {
+      "2026-03-01": {
+        chrome: {
+          totalSeconds: 100,
+          lastUpdated: "2026-03-01T10:00:00.000Z",
+        },
+      },
+    };
+    const etag1 = computeDailyUsageEtag(data);
+    const etag2 = computeDailyUsageEtag(data);
+    expect(etag1).toBe(etag2);
+  });
+
+  it("totalSeconds が変わると異なる etag を返す", () => {
+    const data1 = {
+      "2026-03-01": {
+        chrome: {
+          totalSeconds: 100,
+          lastUpdated: "2026-03-01T10:00:00.000Z",
+        },
+      },
+    };
+    const data2 = {
+      "2026-03-01": {
+        chrome: {
+          totalSeconds: 200,
+          lastUpdated: "2026-03-01T10:00:00.000Z",
+        },
+      },
+    };
+    expect(computeDailyUsageEtag(data1)).not.toBe(computeDailyUsageEtag(data2));
+  });
+
+  it("lastUpdated が変わると異なる etag を返す", () => {
+    const data1 = {
+      "2026-03-01": {
+        chrome: {
+          totalSeconds: 100,
+          lastUpdated: "2026-03-01T10:00:00.000Z",
+        },
+      },
+    };
+    const data2 = {
+      "2026-03-01": {
+        chrome: {
+          totalSeconds: 100,
+          lastUpdated: "2026-03-01T10:01:00.000Z",
+        },
+      },
+    };
+    expect(computeDailyUsageEtag(data1)).not.toBe(computeDailyUsageEtag(data2));
+  });
+
+  it("空の dailyUsage でもエラーなく etag を返す", () => {
+    const etag = computeDailyUsageEtag({});
+    expect(typeof etag).toBe("string");
+    expect(etag.length).toBeGreaterThan(0);
   });
 });

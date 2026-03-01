@@ -16,6 +16,7 @@ import {
   STORAGE_KEY_TRACKING_SESSION,
   STORAGE_KEY_DAILY_USAGE,
   STORAGE_KEY_SENT_DATES,
+  STORAGE_KEY_LAST_SENT_ETAG,
   ALARM_NAME_FLUSH,
   MIN_DURATION_SECONDS,
   BUFFER_RETENTION_DAYS,
@@ -27,6 +28,7 @@ import {
   getToday,
   addUsageToDailyBuffer,
   pruneOldDates,
+  computeDailyUsageEtag,
 } from "../utils/tracking.js";
 
 // ---------------------------------------------------------------------------
@@ -227,6 +229,17 @@ async function flushUsageData() {
     return;
   }
 
+  // 送信対象データの etag を計算し、前回送信時と同一なら送信スキップ
+  const sendTarget = {};
+  for (const date of datesToSend) {
+    sendTarget[date] = dailyUsage[date];
+  }
+  const currentEtag = computeDailyUsageEtag(sendTarget);
+  const lastSentEtag = await getStorage(STORAGE_KEY_LAST_SENT_ETAG);
+  if (currentEtag === lastSentEtag) {
+    return;
+  }
+
   for (const date of datesToSend) {
     const apps = dailyUsage[date];
     const logs = Object.entries(apps).map(([appName, data]) => ({
@@ -253,6 +266,18 @@ async function flushUsageData() {
   }
 
   await setStorage(STORAGE_KEY_SENT_DATES, sentDates);
+
+  // 送信成功時の etag を保存
+  const updatedSendTarget = {};
+  for (const date of datesToSend) {
+    if (dailyUsage[date]) {
+      updatedSendTarget[date] = dailyUsage[date];
+    }
+  }
+  await setStorage(
+    STORAGE_KEY_LAST_SENT_ETAG,
+    computeDailyUsageEtag(updatedSendTarget),
+  );
 }
 
 /**
@@ -302,6 +327,8 @@ async function handleWindowFocusChanged(windowId) {
     const appName = determineAppName(win, tabs);
     if (appName) {
       await startTracking(appName);
+    } else {
+      console.log("[WebUsageTracker] appName を特定できないウィンドウ");
     }
   } catch (error) {
     console.error("[WebUsageTracker] ウィンドウ情報取得エラー:", error);

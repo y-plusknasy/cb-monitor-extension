@@ -6,7 +6,7 @@
  * @see docs/adr/ADR-001-daily-usage-buffer-design.md
  */
 
-import { APP_NAME_CHROME_BROWSER } from "./constants.js";
+import { APP_NAME_CHROME_BROWSER, APP_NAME_UNKNOWN } from "./constants.js";
 
 /**
  * URL からドメイン名を抽出する
@@ -26,7 +26,8 @@ export function extractDomain(url) {
  * ウィンドウ種別から appName を決定する
  * @param {{type: string}} win - ウィンドウオブジェクト（type フィールドのみ使用）
  * @param {Array<{url?: string}>} [tabs] - ウィンドウ内のアクティブタブ一覧
- * @returns {string|null} appName。判定できない場合は null
+ * @returns {string|null} appName。win が null の場合のみ null を返す。
+ *   未知のウィンドウタイプやタブ情報が取得できない場合は "unknown" を返す（ADR-002）。
  */
 export function determineAppName(win, tabs) {
   if (!win) return null;
@@ -34,9 +35,9 @@ export function determineAppName(win, tabs) {
   // PWA ウィンドウ: type が "app" または "popup"
   if (win.type === "app" || win.type === "popup") {
     if (tabs && tabs.length > 0 && tabs[0].url) {
-      return extractDomain(tabs[0].url);
+      return extractDomain(tabs[0].url) || APP_NAME_UNKNOWN;
     }
-    return null;
+    return APP_NAME_UNKNOWN;
   }
 
   // 通常の Chrome ブラウザウィンドウ
@@ -44,7 +45,8 @@ export function determineAppName(win, tabs) {
     return APP_NAME_CHROME_BROWSER;
   }
 
-  return null;
+  // 未知のウィンドウタイプ（devtools 等）も利用時間として計測する
+  return APP_NAME_UNKNOWN;
 }
 
 /**
@@ -108,4 +110,34 @@ export function pruneOldDates(dailyUsage, retentionDays, now = new Date()) {
     }
   }
   return pruned;
+}
+
+/**
+ * dailyUsage の内容からハッシュ文字列（etag）を計算する。
+ * 送信前に前回の etag と比較し、変化がなければ API 送信をスキップするために使用する。
+ *
+ * 軽量に一意性を担保するため、各エントリの lastUpdated を日付・アプリ名とともに
+ * ソート済み連結し、簡易ハッシュ（djb2）を生成する。
+ *
+ * @param {Object<string, Object<string, {totalSeconds: number, lastUpdated: string}>>} dailyUsage
+ * @returns {string} etag 文字列（16進数）
+ */
+export function computeDailyUsageEtag(dailyUsage) {
+  const parts = [];
+  for (const date of Object.keys(dailyUsage).sort()) {
+    const apps = dailyUsage[date];
+    for (const appName of Object.keys(apps).sort()) {
+      parts.push(
+        `${date}:${appName}:${apps[appName].totalSeconds}:${apps[appName].lastUpdated}`,
+      );
+    }
+  }
+  const str = parts.join("|");
+
+  // djb2 ハッシュ
+  let hash = 5381;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) + hash + str.charCodeAt(i)) >>> 0;
+  }
+  return hash.toString(16);
 }

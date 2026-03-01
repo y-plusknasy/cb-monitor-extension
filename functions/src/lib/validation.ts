@@ -10,7 +10,7 @@ const dateString = z
  *
  * - deviceId: UUID v4 形式
  * - date: 対象日 (YYYY-MM-DD)
- * - appName: PWA のドメイン名 または "chrome"（1〜253文字）
+ * - appName: PWA のドメイン名 / "chrome" / "unknown"（1〜253文字）
  * - totalSeconds: その日のアプリ累積利用秒数（1〜86400）
  * - lastUpdated: 最終更新日時 ISO8601 datetime
  */

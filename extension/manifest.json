@@ -4,6 +4,10 @@
   "version": "0.1.0",
   "description": "ブラウザ利用時間を監視・記録する拡張機能",
   "permissions": ["tabs", "storage", "alarms"],
+  "host_permissions": [
+    "http://localhost/*",
+    "https://*.cloudfunctions.net/*"
+  ],
   "background": {
     "service_worker": "background/service-worker.js",
     "type": "module"
