@@ -4,7 +4,7 @@ import { getDb } from "./lib/firestore.js";
 import { usageLogSchema } from "./lib/validation.js";
 import {
   COLLECTION_USAGE_LOGS,
-  PARENT_ID_UNLINKED,
+  COLLECTION_DEVICES,
   USAGE_LOGS_TTL_DAYS,
 } from "./lib/constants.js";
 
@@ -17,8 +17,9 @@ import {
  * ドキュメントID は "${deviceId}_${date}_${appName}" で一意に管理し、
  * 同一キーのリクエストは totalSeconds を上書きする。
  *
- * S01 では deviceId 検証（ペアリング済みかどうか）は行わず、
- * すべてのリクエストを受け付け parentId = "unlinked" として保存する。
+ * S02: deviceId が devices コレクションに登録済みかどうかを検証し、
+ * 未登録デバイスからのリクエストは 401 で拒否する。
+ * 登録済みデバイスの場合は、devices コレクションから取得した parentId を使用する。
  */
 export const usageLogs = onRequest({ cors: true }, async (req, res) => {
   // POST のみ許可
@@ -39,8 +40,23 @@ export const usageLogs = onRequest({ cors: true }, async (req, res) => {
 
   const { deviceId, date, appName, totalSeconds, lastUpdated } = result.data;
 
-  // Firestore に upsert
   const db = getDb();
+
+  // deviceId の登録検証: devices コレクションから parentId を逆引き
+  const deviceDoc = await db.collection(COLLECTION_DEVICES).doc(deviceId).get();
+  if (!deviceDoc.exists) {
+    res.status(401).json({ error: "unknown_device" });
+    return;
+  }
+  const parentId = deviceDoc.data()!.parentId as string;
+
+  // デバイスの最終通信日時を更新（無操作検知用）
+  await db
+    .collection(COLLECTION_DEVICES)
+    .doc(deviceId)
+    .update({ lastSeenAt: Timestamp.now() });
+
+  // Firestore に upsert
   const docId = `${deviceId}_${date}_${appName}`;
   const expireAt = Timestamp.fromDate(
     new Date(
@@ -53,7 +69,7 @@ export const usageLogs = onRequest({ cors: true }, async (req, res) => {
     .doc(docId)
     .set(
       {
-        parentId: PARENT_ID_UNLINKED,
+        parentId,
         deviceId,
         date,
         appName,

@@ -7,6 +7,14 @@
     "/^cd /workspaces/cb-monitor-extension/functions && npm install$/": {
       "approve": true,
       "matchCommandLine": true
+    },
+    "/^cd /workspaces/cb-monitor-extension/functions && npm test 2>&1$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "/^cd /workspaces/cb-monitor-extension/extension && npm test 2>&1$/": {
+      "approve": true,
+      "matchCommandLine": true
     }
   }
 }

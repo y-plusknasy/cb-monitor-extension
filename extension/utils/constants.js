@@ -35,5 +35,18 @@ export const ALARM_NAME_FLUSH = "flushLogs";
 /** 計測を無視する最小秒数 */
 export const MIN_DURATION_SECONDS = 1;
 
-/** バッファに保持する最大日数（当日含む） */
+/** バッファに保持する最大日数（当日含む、ペアリング済み時） */
 export const BUFFER_RETENTION_DAYS = 4;
+
+/** 未ペアリング時のバッファ保持最大日数（当日含む） */
+export const UNLINKED_BUFFER_RETENTION_DAYS = 14;
+
+// ---------------------------------------------------------------------------
+// S02: ペアリング関連
+// ---------------------------------------------------------------------------
+
+/** chrome.storage のキー: ペアリング状態 */
+export const STORAGE_KEY_PAIRING_STATUS = "pairingStatus";
+
+/** chrome.storage.sync のキー: デバイスバックアップ（deviceId 復旧用） */
+export const SYNC_KEY_DEVICE_BACKUPS = "deviceBackups";

@@ -6,6 +6,7 @@
  */
 
 const currentAppEl = document.getElementById("current-app");
+const pairingStatusEl = document.getElementById("pairing-status");
 const deviceIdEl = document.getElementById("device-id");
 const todayTotalEl = document.getElementById("today-total");
 
@@ -43,6 +44,16 @@ async function updateStatus() {
       if (response.deviceId) {
         deviceIdEl.textContent = response.deviceId.substring(0, 8) + "...";
         deviceIdEl.title = response.deviceId;
+      }
+
+      // ペアリング状態
+      if (response.pairingStatus) {
+        pairingStatusEl.textContent = response.pairingStatus.deviceName;
+        pairingStatusEl.className = "value active";
+        pairingStatusEl.title = `登録日: ${new Date(response.pairingStatus.pairedAt).toLocaleDateString("ja-JP")}`;
+      } else {
+        pairingStatusEl.textContent = "未登録";
+        pairingStatusEl.className = "value inactive";
       }
 
       // 本日の合計利用時間

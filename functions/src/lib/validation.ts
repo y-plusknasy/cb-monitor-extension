@@ -24,3 +24,27 @@ export const usageLogSchema = z.object({
 
 /** usageLogSchema から推論されるリクエスト型 */
 export type UsageLogRequest = z.infer<typeof usageLogSchema>;
+
+// ---------------------------------------------------------------------------
+// S02: ペアリング用スキーマ
+// ---------------------------------------------------------------------------
+
+/** 6桁数字の OTP 文字列 */
+const otpString = z.string().regex(/^\d{6}$/, "6桁の数字で指定してください");
+
+/**
+ * デバイス登録リクエストのバリデーションスキーマ
+ *
+ * - otp: 6桁数字の OTP コード
+ * - deviceId: UUID v4 形式
+ * - deviceName: デバイス表示名（1〜100文字）
+ */
+export const registerDeviceSchema = z.object({
+  otp: otpString,
+  deviceId: z.string().uuid(),
+  deviceName: z.string().min(1).max(100),
+  syncAvailable: z.boolean().optional(),
+});
+
+/** registerDeviceSchema から推論されるリクエスト型 */
+export type RegisterDeviceRequest = z.infer<typeof registerDeviceSchema>;

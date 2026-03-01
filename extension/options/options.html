@@ -17,6 +17,13 @@
         color: #1a73e8;
         margin-bottom: 24px;
       }
+      h2 {
+        font-size: 15px;
+        color: #555;
+        margin: 24px 0 12px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid #eee;
+      }
       .form-group {
         margin-bottom: 16px;
       }
@@ -31,7 +38,8 @@
         color: #888;
         margin-bottom: 6px;
       }
-      input[type="url"] {
+      input[type="url"],
+      input[type="text"] {
         width: 100%;
         padding: 8px;
         border: 1px solid #ccc;
@@ -39,7 +47,8 @@
         font-size: 14px;
         box-sizing: border-box;
       }
-      input[type="url"]:focus {
+      input[type="url"]:focus,
+      input[type="text"]:focus {
         outline: none;
         border-color: #1a73e8;
         box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2);
@@ -55,6 +64,10 @@
       }
       button:hover {
         background: #1557b0;
+      }
+      button:disabled {
+        background: #ccc;
+        cursor: not-allowed;
       }
       .message {
         margin-top: 12px;
@@ -73,26 +86,91 @@
         background: #fce8e6;
         color: #c5221f;
       }
+      .pairing-status {
+        margin-top: 12px;
+        padding: 10px 14px;
+        border-radius: 6px;
+        font-size: 13px;
+      }
+      .pairing-status.paired {
+        background: #e6f4ea;
+        color: #137333;
+        border: 1px solid #ceead6;
+      }
+      .pairing-status.unpaired {
+        background: #fef7e0;
+        color: #7c6900;
+        border: 1px solid #f5e6a3;
+      }
+      .section {
+        margin-bottom: 24px;
+      }
     </style>
   </head>
   <body>
     <h1>Web Usage Tracker — 設定</h1>
-    <form id="settings-form">
-      <div class="form-group">
-        <label for="api-endpoint">API エンドポイント</label>
-        <div class="help-text">
-          Firebase Functions の usageLogs URL を入力してください
+
+    <!-- API エンドポイント設定 -->
+    <div class="section">
+      <h2>API 接続設定</h2>
+      <form id="settings-form">
+        <div class="form-group">
+          <label for="api-endpoint">API エンドポイント</label>
+          <div class="help-text">
+            Firebase Functions の usageLogs URL を入力してください
+          </div>
+          <input
+            type="url"
+            id="api-endpoint"
+            placeholder="https://us-central1-your-project.cloudfunctions.net/usageLogs"
+            required
+          />
         </div>
-        <input
-          type="url"
-          id="api-endpoint"
-          placeholder="https://us-central1-your-project.cloudfunctions.net/usageLogs"
-          required
-        />
+        <button type="submit">保存</button>
+      </form>
+      <div id="message" class="message"></div>
+    </div>
+
+    <!-- ペアリング（デバイス登録） -->
+    <div class="section">
+      <h2>デバイス登録（ペアリング）</h2>
+      <div id="pairing-status" class="pairing-status unpaired">
+        状態を確認中...
       </div>
-      <button type="submit">保存</button>
-    </form>
-    <div id="message" class="message"></div>
+      <form id="pairing-form" style="margin-top: 12px">
+        <div class="form-group">
+          <label for="device-name">デバイス名</label>
+          <div class="help-text">
+            このデバイスを識別する名前（例: 「子供の Chromebook」）
+          </div>
+          <input
+            type="text"
+            id="device-name"
+            placeholder="Chromebook（子供）"
+            required
+            maxlength="100"
+          />
+        </div>
+        <div class="form-group">
+          <label for="otp-code">ワンタイムパスコード (OTP)</label>
+          <div class="help-text">
+            保護者のアプリで発行された 6 桁のコードを入力してください
+          </div>
+          <input
+            type="text"
+            id="otp-code"
+            placeholder="123456"
+            required
+            pattern="\d{6}"
+            maxlength="6"
+            inputmode="numeric"
+          />
+        </div>
+        <button type="submit" id="register-btn">登録</button>
+      </form>
+      <div id="pairing-message" class="message"></div>
+    </div>
+
     <script src="options.js" type="module"></script>
   </body>
 </html>

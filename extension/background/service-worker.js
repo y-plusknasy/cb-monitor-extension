@@ -17,11 +17,19 @@ import {
   STORAGE_KEY_DAILY_USAGE,
   STORAGE_KEY_SENT_DATES,
   STORAGE_KEY_LAST_SENT_ETAG,
+  STORAGE_KEY_PAIRING_STATUS,
+  SYNC_KEY_DEVICE_BACKUPS,
   ALARM_NAME_FLUSH,
   MIN_DURATION_SECONDS,
   BUFFER_RETENTION_DAYS,
+  UNLINKED_BUFFER_RETENTION_DAYS,
 } from "../utils/constants.js";
-import { getStorage, setStorage } from "../utils/storage.js";
+import {
+  getStorage,
+  setStorage,
+  getSyncStorage,
+  computeDeviceFingerprint,
+} from "../utils/storage.js";
 import { sendUsageLogs } from "../utils/api.js";
 import {
   determineAppName,
@@ -52,6 +60,43 @@ const state = {
 };
 
 // ---------------------------------------------------------------------------
+// chrome.storage.sync バックアップからの復元
+// ---------------------------------------------------------------------------
+
+/**
+ * chrome.storage.sync に保存されたバックアップからデバイス情報を復元する。
+ * デバイスフィンガープリントで端末を識別し、一致するバックアップを返す。
+ *
+ * @returns {Promise<{deviceId: string, pairingStatus: object|null, apiEndpoint: string|null}|null>}
+ */
+async function restoreFromSyncBackup() {
+  try {
+    const backups = await getSyncStorage(SYNC_KEY_DEVICE_BACKUPS);
+    if (!backups || typeof backups !== "object") {
+      return null;
+    }
+
+    const fingerprint = computeDeviceFingerprint();
+    const backup = backups[fingerprint];
+    if (!backup || !backup.deviceId) {
+      return null;
+    }
+
+    return {
+      deviceId: backup.deviceId,
+      pairingStatus: backup.pairingStatus || null,
+      apiEndpoint: backup.apiEndpoint || null,
+    };
+  } catch (error) {
+    console.warn(
+      "[WebUsageTracker] chrome.storage.sync からの復元に失敗:",
+      error,
+    );
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // 初期化
 // ---------------------------------------------------------------------------
 
@@ -64,12 +109,29 @@ const state = {
  * - 定期送信アラームの登録
  */
 async function initialize() {
-  // deviceId の取得または生成
+  // deviceId の取得または復元または新規生成
   let deviceId = await getStorage(STORAGE_KEY_DEVICE_ID);
   if (!deviceId) {
-    deviceId = crypto.randomUUID();
-    await setStorage(STORAGE_KEY_DEVICE_ID, deviceId);
-    console.log("[WebUsageTracker] 新規 deviceId を生成:", deviceId);
+    // chrome.storage.sync からの復元を試みる
+    const restored = await restoreFromSyncBackup();
+    if (restored) {
+      deviceId = restored.deviceId;
+      await setStorage(STORAGE_KEY_DEVICE_ID, deviceId);
+      if (restored.pairingStatus) {
+        await setStorage(STORAGE_KEY_PAIRING_STATUS, restored.pairingStatus);
+      }
+      if (restored.apiEndpoint) {
+        await setStorage(STORAGE_KEY_API_ENDPOINT, restored.apiEndpoint);
+      }
+      console.log(
+        "[WebUsageTracker] chrome.storage.sync から deviceId を復元:",
+        deviceId,
+      );
+    } else {
+      deviceId = crypto.randomUUID();
+      await setStorage(STORAGE_KEY_DEVICE_ID, deviceId);
+      console.log("[WebUsageTracker] 新規 deviceId を生成:", deviceId);
+    }
   }
   state.deviceId = deviceId;
 
@@ -85,8 +147,13 @@ async function initialize() {
   }
 
   // 古い日付データのガベージコレクション
+  // ペアリング済みの場合は BUFFER_RETENTION_DAYS、未ペアリングの場合は UNLINKED_BUFFER_RETENTION_DAYS
+  const pairingStatus = await getStorage(STORAGE_KEY_PAIRING_STATUS);
+  const retentionDays = pairingStatus
+    ? BUFFER_RETENTION_DAYS
+    : UNLINKED_BUFFER_RETENTION_DAYS;
   const dailyUsage = (await getStorage(STORAGE_KEY_DAILY_USAGE)) || {};
-  const pruned = pruneOldDates(dailyUsage, BUFFER_RETENTION_DAYS);
+  const pruned = pruneOldDates(dailyUsage, retentionDays);
   await setStorage(STORAGE_KEY_DAILY_USAGE, pruned);
 
   // 送信済みリストもクリーンアップ
@@ -94,7 +161,7 @@ async function initialize() {
   const today = getToday();
   const cleanedSentDates = sentDates.filter((d) => {
     const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - BUFFER_RETENTION_DAYS + 1);
+    cutoff.setDate(cutoff.getDate() - retentionDays + 1);
     return d >= getToday(cutoff);
   });
   await setStorage(STORAGE_KEY_SENT_DATES, cleanedSentDates);
@@ -213,6 +280,12 @@ async function flushUsageData() {
   const endpoint = await getStorage(STORAGE_KEY_API_ENDPOINT);
   if (!endpoint) {
     console.warn("[WebUsageTracker] API エンドポイント未設定。送信スキップ");
+    return;
+  }
+
+  // S02: ペアリング済みの場合のみ送信する
+  const pairingStatus = await getStorage(STORAGE_KEY_PAIRING_STATUS);
+  if (!pairingStatus) {
     return;
   }
 
@@ -349,7 +422,8 @@ async function handleWindowFocusChanged(windowId) {
 function handleMessage(message, _sender, sendResponse) {
   if (message.type === "getStatus") {
     // dailyUsage の今日の合計を取得（非同期）
-    getStorage(STORAGE_KEY_DAILY_USAGE).then((dailyUsage) => {
+    (async () => {
+      const dailyUsage = await getStorage(STORAGE_KEY_DAILY_USAGE);
       const today = getToday();
       const todayUsage = dailyUsage?.[today] || {};
       const todayTotalSeconds = Object.values(todayUsage).reduce(
@@ -357,13 +431,15 @@ function handleMessage(message, _sender, sendResponse) {
         0,
       );
 
+      const pairingStatus = await getStorage(STORAGE_KEY_PAIRING_STATUS);
       sendResponse({
         currentAppName: state.currentAppName,
         deviceId: state.deviceId,
         todayTotalSeconds,
         todayApps: todayUsage,
+        pairingStatus,
       });
-    });
+    })();
     return true; // 非同期応答
   }
   return false;
