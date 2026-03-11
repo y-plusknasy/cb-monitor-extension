@@ -20,5 +20,5 @@ ui-debug.log
 Thumbs.db
 
 # Documents
-docs/owner-tasks
-docs/review
+docs/owner-tasks/
+docs/review/

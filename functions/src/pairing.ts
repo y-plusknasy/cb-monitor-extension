@@ -1,8 +1,7 @@
 import { randomInt } from "crypto";
 import { onRequest } from "firebase-functions/v2/https";
-import { getAuth } from "firebase-admin/auth";
 import { Timestamp, FieldValue } from "firebase-admin/firestore";
-import { getDb } from "./lib/firestore.js";
+import { getDb, getAdminAuth } from "./lib/firestore.js";
 import { registerDeviceSchema } from "./lib/validation.js";
 import {
   COLLECTION_USERS,
@@ -43,7 +42,7 @@ export const generateOtp = onRequest({ cors: true }, async (req, res) => {
 
   let decodedToken;
   try {
-    decodedToken = await getAuth().verifyIdToken(idToken);
+    decodedToken = await getAdminAuth().verifyIdToken(idToken);
   } catch {
     res.status(401).json({ error: "unauthorized" });
     return;
