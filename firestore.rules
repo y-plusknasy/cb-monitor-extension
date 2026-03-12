@@ -1,0 +1,65 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // -----------------------------------------------------------------------
+    // users コレクション
+    // 認証ユーザーは自分のドキュメントのみ読み書き可能
+    // -----------------------------------------------------------------------
+    match /users/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // -----------------------------------------------------------------------
+    // usageLogs コレクション
+    // 認証ユーザーは自分の parentId に紐づくドキュメントのみ読み取り可能
+    // 書き込みは Admin SDK (Cloud Functions) のみ
+    // -----------------------------------------------------------------------
+    match /usageLogs/{logId} {
+      allow read: if request.auth != null
+                  && resource.data.parentId == request.auth.uid;
+      allow write: if false;
+    }
+
+    // -----------------------------------------------------------------------
+    // dailyLogs コレクション
+    // 認証ユーザーは自分の parentId に紐づくドキュメントのみ読み取り可能
+    // 書き込みは Admin SDK (Cloud Functions) のみ
+    // -----------------------------------------------------------------------
+    match /dailyLogs/{logId} {
+      allow read: if request.auth != null
+                  && resource.data.parentId == request.auth.uid;
+      allow write: if false;
+    }
+
+    // -----------------------------------------------------------------------
+    // devices コレクション
+    // 認証ユーザーは自分の parentId に紐づくドキュメントのみ読み取り可能
+    // 書き込みは Admin SDK (Cloud Functions) のみ
+    // -----------------------------------------------------------------------
+    match /devices/{deviceId} {
+      allow read: if request.auth != null
+                  && resource.data.parentId == request.auth.uid;
+      allow write: if false;
+    }
+
+    // -----------------------------------------------------------------------
+    // oneTimeCodes コレクション
+    // クライアントからのアクセスは一切禁止（Admin SDK のみ）
+    // -----------------------------------------------------------------------
+    match /oneTimeCodes/{otpCode} {
+      allow read, write: if false;
+    }
+
+    // -----------------------------------------------------------------------
+    // appRegistry コレクション
+    // 認証済みユーザーは読み取り可能、書き込みは Admin SDK のみ
+    // -----------------------------------------------------------------------
+    match /appRegistry/{domain} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+  }
+}

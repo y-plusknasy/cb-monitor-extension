@@ -1,0 +1,26 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "usageLogs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "parentId", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "dailyLogs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "parentId", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "oneTimeCodes",
+      "queryScope": "COLLECTION",
+      "fields": [{ "fieldPath": "expireAt", "order": "ASCENDING" }]
+    }
+  ],
+  "fieldOverrides": []
+}

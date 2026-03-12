@@ -16,12 +16,18 @@ export const COLLECTION_ONE_TIME_CODES = "oneTimeCodes";
 /** devices コレクション名（deviceId → parentId 逆引き用） */
 export const COLLECTION_DEVICES = "devices";
 
+/** dailyLogs コレクション名 */
+export const COLLECTION_DAILY_LOGS = "dailyLogs";
+
 // ---------------------------------------------------------------------------
 // TTL
 // ---------------------------------------------------------------------------
 
 /** usageLogs の TTL (日数) */
 export const USAGE_LOGS_TTL_DAYS = 30;
+
+/** dailyLogs の TTL (日数) — 6ヶ月 */
+export const DAILY_LOGS_TTL_DAYS = 180;
 
 // ---------------------------------------------------------------------------
 // OTP 設定

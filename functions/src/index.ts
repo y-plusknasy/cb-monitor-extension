@@ -6,3 +6,4 @@
 export { usageLogs } from "./usageLogs.js";
 export { generateOtp, registerDevice } from "./pairing.js";
 export { cleanupExpiredOtps } from "./cleanupOtps.js";
+export { aggregateDailyLogs } from "./aggregateDailyLogs.js";
