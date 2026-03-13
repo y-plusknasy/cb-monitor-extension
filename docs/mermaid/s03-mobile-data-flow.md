@@ -94,7 +94,7 @@ graph TD
     HOME --> HISTORY_CHART[UsageHistoryChart]
     HOME --> APP_ROW_H[AppUsageRow]
 
-    HISTORY_CHART --> APP_ROW_C[AppUsageRow<br/>(内訳表示)]
+    HISTORY_CHART --> APP_ROW_C["AppUsageRow<br/>(内訳表示)"]
 
     DEVICES --> DEVICE_CARD[DeviceCard]
     DEVICES --> OTP_DISPLAY[OtpDisplay]
