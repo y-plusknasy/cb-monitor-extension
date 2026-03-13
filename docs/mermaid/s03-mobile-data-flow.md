@@ -66,13 +66,11 @@ flowchart TD
         OTP_DISP[OtpDisplay<br/>6桁コード + タイマー]
     end
 
-    %% データの流れ
     AUTH -->|uid| DEV
     FS_USERS -.->|onSnapshot<br/>childDevices| DEV
     FS_DEVICES -.->|onSnapshot<br/>syncAvailable, lastSeenAt| DEV
-    DEV -->|DeviceInfo[]| CARD
+    DEV -->|"DeviceInfo[]"| CARD
 
-    %% 認証とOTP発行の流れ
     AUTH -->|idToken| OTP_BTN
     OTP_BTN -->|POST /generateOtp| CF_OTP
     CF_OTP -->|otp, expiresIn| OTP_DISP
