@@ -26,8 +26,8 @@ export const COLLECTION_DAILY_LOGS = "dailyLogs";
 /** usageLogs の TTL (日数) */
 export const USAGE_LOGS_TTL_DAYS = 30;
 
-/** dailyLogs の TTL (日数) — 6ヶ月 */
-export const DAILY_LOGS_TTL_DAYS = 180;
+/** dailyLogs の TTL (日数) — 約12週間 */
+export const DAILY_LOGS_TTL_DAYS = 84;
 
 // ---------------------------------------------------------------------------
 // OTP 設定
@@ -51,3 +51,20 @@ export const OTP_MAX = 1000000;
 
 /** 無操作検知のデフォルト閾値（日数） */
 export const DEFAULT_INACTIVITY_THRESHOLD_DAYS = 6;
+
+// ---------------------------------------------------------------------------
+// レート制限
+// ---------------------------------------------------------------------------
+
+/** レート制限ウィンドウ（ミリ秒）— 60秒 */
+export const RATE_LIMIT_WINDOW_MS = 60_000;
+
+/** レート制限ウィンドウ内の最大リクエスト数 */
+export const RATE_LIMIT_MAX_REQUESTS = 30;
+
+// ---------------------------------------------------------------------------
+// 日付バリデーション
+// ---------------------------------------------------------------------------
+
+/** 過去何日前までのデータを受け付けるか */
+export const MAX_DATE_AGE_DAYS = 31;

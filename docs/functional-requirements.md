@@ -122,7 +122,7 @@ cb-monitor-extension/
   - `{parentUid}`: { parentUid, email, displayName, childDevices: [{deviceId, deviceName, registeredAt}], createdAt }
 - **`usageLogs` (Collection)** — TTL: 30日
   - `{logId}`: { parentId, deviceId, appName, durationSeconds, timestamp, expireAt }
-- **`dailyLogs` (Collection)** — TTL: 6ヶ月
+- **`dailyLogs` (Collection)** — TTL: 84日（約12週間）
   - `{deviceId}_{appName}_{YYYY-MM-DD}`: { parentId, deviceId, appName, date, totalMinutes, updatedAt, expireAt }
   - 1レコード = deviceId-appName の組み合わせの1日の利用時間合計（分）
 - **`appRegistry` (Collection)** — グローバル（ユーザー非依存）

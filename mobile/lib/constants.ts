@@ -13,6 +13,9 @@ export const COLLECTION_USERS = "users";
 /** devices コレクション名 */
 export const COLLECTION_DEVICES = "devices";
 
+/** dailyLogs コレクション名 */
+export const COLLECTION_DAILY_LOGS = "dailyLogs";
+
 /** appRegistry コレクション名 */
 export const COLLECTION_APP_REGISTRY = "appRegistry";
 

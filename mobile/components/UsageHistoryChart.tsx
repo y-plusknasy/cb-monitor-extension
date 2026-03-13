@@ -21,7 +21,7 @@ import {
   type DocumentData,
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
-import { COLLECTION_USAGE_LOGS } from "../lib/constants";
+import { COLLECTION_DAILY_LOGS } from "../lib/constants";
 import {
   useUsageHistory,
   type DailySummary,
@@ -102,7 +102,7 @@ export function UsageHistoryChart({
 
       try {
         const q = query(
-          collection(db, COLLECTION_USAGE_LOGS),
+          collection(db, COLLECTION_DAILY_LOGS),
           where("parentId", "==", parentId),
           where("date", "==", date),
         );

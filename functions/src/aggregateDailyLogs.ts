@@ -10,13 +10,13 @@ import {
 /**
  * dailyLogs 日次バッチ集計
  *
- * 毎日 04:00 (UTC) に前日分の usageLogs を集計し、
+ * 毎日 15:00 (UTC) = JST 0:00 に前日分の usageLogs を集計し、
  * dailyLogs コレクションに deviceId × appName 単位でサマリーを書き込む。
  *
  * ドキュメントID: `{deviceId}_{appName}_{date}`
- * TTL: 作成日から 180 日後（expireAt フィールド）
+ * TTL: 作成日から 84 日後（expireAt フィールド）
  */
-export const aggregateDailyLogs = onSchedule("every day 04:00", async () => {
+export const aggregateDailyLogs = onSchedule("every day 15:00", async () => {
   const db = getDb();
   const yesterday = getYesterdayDateString();
 

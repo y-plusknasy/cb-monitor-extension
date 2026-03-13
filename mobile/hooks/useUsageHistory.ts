@@ -15,7 +15,7 @@ import {
   type DocumentData,
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
-import { COLLECTION_USAGE_LOGS } from "../lib/constants";
+import { COLLECTION_DAILY_LOGS } from "../lib/constants";
 
 /** 1日分のサマリー */
 export interface DailySummary {
@@ -83,6 +83,10 @@ export function getDateRange(page: number): {
 /**
  * 指定ページの利用履歴を取得するカスタムフック。
  *
+ * dailyLogs コレクション（日次バッチ集計済み）から前日以前の履歴を取得する。
+ * usageLogs （リアルタイム）ではなく dailyLogs を使用することで、
+ * ドキュメント数が削減され通信量を抑制できる。
+ *
  * @param parentId - 保護者の Firebase Auth UID
  * @param page - ページ番号 (0〜3)
  */
@@ -107,7 +111,7 @@ export function useUsageHistory(
     }
 
     const q = query(
-      collection(db, COLLECTION_USAGE_LOGS),
+      collection(db, COLLECTION_DAILY_LOGS),
       where("parentId", "==", parentId),
       where("date", ">=", startDate),
       where("date", "<=", endDate),

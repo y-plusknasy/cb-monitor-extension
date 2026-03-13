@@ -100,6 +100,73 @@ describe("usageLogSchema", () => {
     const result = usageLogSchema.safeParse(incomplete);
     expect(result.success).toBe(false);
   });
+
+  // strict: 未定義プロパティの拒否
+  it("未定義のプロパティが含まれている場合はエラー", () => {
+    const result = usageLogSchema.safeParse({
+      ...validPayload,
+      extraField: "malicious",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("複数の未定義プロパティが含まれている場合はエラー", () => {
+    const result = usageLogSchema.safeParse({
+      ...validPayload,
+      __proto__: "hack",
+      constructor: "evil",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  // appName インジェクション防止
+  it("appName にスラッシュが含まれる場合はエラー", () => {
+    const result = usageLogSchema.safeParse({
+      ...validPayload,
+      appName: "../etc/passwd",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("appName にスペースが含まれる場合はエラー", () => {
+    const result = usageLogSchema.safeParse({
+      ...validPayload,
+      appName: "app name",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("appName に制御文字が含まれる場合はエラー", () => {
+    const result = usageLogSchema.safeParse({
+      ...validPayload,
+      appName: "app\x00name",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("appName に SQL インジェクション的文字列を含む場合はエラー", () => {
+    const result = usageLogSchema.safeParse({
+      ...validPayload,
+      appName: "'; DROP TABLE users;--",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("appName = 'unknown' を受け入れる", () => {
+    const result = usageLogSchema.safeParse({
+      ...validPayload,
+      appName: "unknown",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("appName にハイフンとドットを含むドメインを受け入れる", () => {
+    const result = usageLogSchema.safeParse({
+      ...validPayload,
+      appName: "my-app.example.com",
+    });
+    expect(result.success).toBe(true);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -234,5 +301,39 @@ describe("registerDeviceSchema", () => {
       syncAvailable: "yes",
     });
     expect(result.success).toBe(false);
+  });
+
+  // strict: 未定義プロパティの拒否
+  it("未定義のプロパティが含まれている場合はエラー", () => {
+    const result = registerDeviceSchema.safeParse({
+      ...validPayload,
+      extraField: "malicious",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  // deviceName インジェクション防止
+  it("deviceName に制御文字が含まれる場合はエラー", () => {
+    const result = registerDeviceSchema.safeParse({
+      ...validPayload,
+      deviceName: "device\x00name",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("deviceName にバックスラッシュが含まれる場合はエラー", () => {
+    const result = registerDeviceSchema.safeParse({
+      ...validPayload,
+      deviceName: "device\\name",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("deviceName に日本語を含む名前を受け入れる", () => {
+    const result = registerDeviceSchema.safeParse({
+      ...validPayload,
+      deviceName: "子供のChromebook（リビング）",
+    });
+    expect(result.success).toBe(true);
   });
 });

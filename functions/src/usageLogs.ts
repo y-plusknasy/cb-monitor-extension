@@ -1,11 +1,14 @@
 import { onRequest } from "firebase-functions/v2/https";
-import { Timestamp } from "firebase-admin/firestore";
+import { Timestamp, FieldValue } from "firebase-admin/firestore";
 import { getDb } from "./lib/firestore.js";
 import { usageLogSchema } from "./lib/validation.js";
 import {
   COLLECTION_USAGE_LOGS,
   COLLECTION_DEVICES,
   USAGE_LOGS_TTL_DAYS,
+  RATE_LIMIT_WINDOW_MS,
+  RATE_LIMIT_MAX_REQUESTS,
+  MAX_DATE_AGE_DAYS,
 } from "./lib/constants.js";
 
 /**
@@ -20,6 +23,8 @@ import {
  * S02: deviceId が devices コレクションに登録済みかどうかを検証し、
  * 未登録デバイスからのリクエストは 401 で拒否する。
  * 登録済みデバイスの場合は、devices コレクションから取得した parentId を使用する。
+ *
+ * S04: レート制限（デバイス単位・分間ウィンドウ）と日付バリデーションを追加。
  */
 export const usageLogs = onRequest({ cors: true }, async (req, res) => {
   // POST のみ許可
@@ -50,11 +55,46 @@ export const usageLogs = onRequest({ cors: true }, async (req, res) => {
   }
   const parentId = deviceDoc.data()!.parentId as string;
 
-  // デバイスの最終通信日時を更新（無操作検知用）
-  await db
-    .collection(COLLECTION_DEVICES)
-    .doc(deviceId)
-    .update({ lastSeenAt: Timestamp.now() });
+  // レート制限: デバイス単位の分間ウィンドウ
+  const deviceData = deviceDoc.data()!;
+  const now = Date.now();
+  const windowStart = deviceData.rateLimitWindowStart as Timestamp | undefined;
+  const requestCount = (deviceData.rateLimitRequestCount as number) ?? 0;
+
+  if (
+    windowStart &&
+    now - windowStart.toDate().getTime() < RATE_LIMIT_WINDOW_MS
+  ) {
+    // ウィンドウ内: カウントチェック
+    if (requestCount >= RATE_LIMIT_MAX_REQUESTS) {
+      res.status(429).json({ error: "rate_limit_exceeded" });
+      return;
+    }
+  }
+
+  // 日付バリデーション: 未来日や過去 MAX_DATE_AGE_DAYS 日以前を拒否
+  const dateError = validateDate(date);
+  if (dateError) {
+    res.status(400).json({ error: dateError });
+    return;
+  }
+
+  // デバイスの最終通信日時 + レート制限カウンターを更新
+  const isNewWindow =
+    !windowStart ||
+    now - windowStart.toDate().getTime() >= RATE_LIMIT_WINDOW_MS;
+
+  const deviceUpdate: Record<string, unknown> = {
+    lastSeenAt: Timestamp.now(),
+  };
+  if (isNewWindow) {
+    deviceUpdate.rateLimitWindowStart = Timestamp.now();
+    deviceUpdate.rateLimitRequestCount = 1;
+  } else {
+    deviceUpdate.rateLimitRequestCount = FieldValue.increment(1);
+  }
+
+  await db.collection(COLLECTION_DEVICES).doc(deviceId).update(deviceUpdate);
 
   // Firestore に upsert
   const docId = `${deviceId}_${date}_${appName}`;
@@ -83,3 +123,41 @@ export const usageLogs = onRequest({ cors: true }, async (req, res) => {
 
   res.status(200).json({ status: "ok" });
 });
+
+// ---------------------------------------------------------------------------
+// ヘルパー関数（テスト用にエクスポート）
+// ---------------------------------------------------------------------------
+
+/**
+ * 日付文字列 (YYYY-MM-DD) が受け付け可能な範囲内かを検証する。
+ *
+ * - 未来日: 翌日以降は拒否
+ * - 過去日: MAX_DATE_AGE_DAYS 日より前は拒否
+ *
+ * @returns エラーメッセージ。問題なければ null
+ */
+export function validateDate(date: string): string | null {
+  const target = new Date(date + "T00:00:00Z");
+  if (isNaN(target.getTime())) {
+    return "invalid_date";
+  }
+
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+
+  const tomorrow = new Date(today);
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+
+  if (target >= tomorrow) {
+    return "future_date_not_allowed";
+  }
+
+  const oldest = new Date(today);
+  oldest.setUTCDate(oldest.getUTCDate() - MAX_DATE_AGE_DAYS);
+
+  if (target < oldest) {
+    return "date_too_old";
+  }
+
+  return null;
+}
