@@ -15,7 +15,8 @@ import {
   type DocumentData,
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
-import { COLLECTION_DAILY_LOGS } from "../lib/constants";
+import { COLLECTION_DAILY_LOGS, COLLECTION_USAGE_LOGS } from "../lib/constants";
+import { getTodayDateString, floorToMinutes } from "../lib/formatters";
 
 /** 1日分のサマリー */
 export interface DailySummary {
@@ -84,8 +85,7 @@ export function getDateRange(page: number): {
  * 指定ページの利用履歴を取得するカスタムフック。
  *
  * dailyLogs コレクション（日次バッチ集計済み）から前日以前の履歴を取得する。
- * usageLogs （リアルタイム）ではなく dailyLogs を使用することで、
- * ドキュメント数が削減され通信量を抑制できる。
+ * 当日分は dailyLogs に未反映のため、usageLogs コレクションから取得して補完する。
  *
  * @param parentId - 保護者の Firebase Auth UID
  * @param page - ページ番号 (0〜3)
@@ -103,6 +103,9 @@ export function useUsageHistory(
     [page],
   );
 
+  const today = useMemo(() => getTodayDateString(), []);
+  const hasToday = dates.includes(today);
+
   useEffect(() => {
     if (!parentId) {
       setDailySummaries([]);
@@ -110,48 +113,99 @@ export function useUsageHistory(
       return;
     }
 
-    const q = query(
+    // dailyLogs の合計を保持（前日以前）
+    const dailyLogsMap = new Map<string, number>();
+    // usageLogs の当日合計を保持
+    let todayTotal = 0;
+
+    let dailyLogsLoaded = false;
+    let usageLogsLoaded = !hasToday; // 当日を含まない場合はロード済みとする
+    const unsubscribers: (() => void)[] = [];
+
+    /** 両リスナーが揃ったら summaries を更新する */
+    function mergeAndUpdate() {
+      if (!dailyLogsLoaded || !usageLogsLoaded) return;
+
+      const summaries: DailySummary[] = dates.map((date) => ({
+        date,
+        totalSeconds:
+          date === today ? todayTotal : (dailyLogsMap.get(date) ?? 0),
+      }));
+
+      setDailySummaries(summaries);
+      setLoading(false);
+      setError(null);
+    }
+
+    // dailyLogs リスナー（前日以前のデータ）
+    const dailyQ = query(
       collection(db, COLLECTION_DAILY_LOGS),
       where("parentId", "==", parentId),
       where("date", ">=", startDate),
       where("date", "<=", endDate),
     );
 
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot: QuerySnapshot<DocumentData>) => {
-        // 日ごとに合計
-        const map = new Map<string, number>();
-        for (const d of dates) {
-          map.set(d, 0);
-        }
-
-        for (const docSnap of snapshot.docs) {
-          const data = docSnap.data();
-          const date = data.date as string;
-          const seconds = data.totalSeconds as number;
-          const current = map.get(date) ?? 0;
-          map.set(date, current + seconds);
-        }
-
-        const summaries: DailySummary[] = dates.map((date) => ({
-          date,
-          totalSeconds: map.get(date) ?? 0,
-        }));
-
-        setDailySummaries(summaries);
-        setLoading(false);
-        setError(null);
-      },
-      (err) => {
-        console.error("[useUsageHistory] onSnapshot error:", err);
-        setError(err);
-        setLoading(false);
-      },
+    unsubscribers.push(
+      onSnapshot(
+        dailyQ,
+        (snapshot: QuerySnapshot<DocumentData>) => {
+          dailyLogsMap.clear();
+          for (const d of dates) {
+            dailyLogsMap.set(d, 0);
+          }
+          for (const docSnap of snapshot.docs) {
+            const data = docSnap.data();
+            const date = data.date as string;
+            const seconds = floorToMinutes(data.totalSeconds as number);
+            const current = dailyLogsMap.get(date) ?? 0;
+            dailyLogsMap.set(date, current + seconds);
+          }
+          dailyLogsLoaded = true;
+          mergeAndUpdate();
+        },
+        (err) => {
+          console.error("[useUsageHistory] dailyLogs onSnapshot error:", err);
+          setError(err);
+          setLoading(false);
+        },
+      ),
     );
 
-    return () => unsubscribe();
-  }, [parentId, startDate, endDate, dates]);
+    // usageLogs リスナー（当日分のみ）
+    if (hasToday) {
+      const usageQ = query(
+        collection(db, COLLECTION_USAGE_LOGS),
+        where("parentId", "==", parentId),
+        where("date", "==", today),
+      );
+
+      unsubscribers.push(
+        onSnapshot(
+          usageQ,
+          (snapshot: QuerySnapshot<DocumentData>) => {
+            todayTotal = 0;
+            for (const docSnap of snapshot.docs) {
+              const data = docSnap.data();
+              todayTotal += floorToMinutes((data.totalSeconds as number) ?? 0);
+            }
+            usageLogsLoaded = true;
+            mergeAndUpdate();
+          },
+          (err) => {
+            console.error("[useUsageHistory] usageLogs onSnapshot error:", err);
+            setError(err);
+            setLoading(false);
+          },
+        ),
+      );
+    }
+
+    return () => {
+      for (const unsub of unsubscribers) {
+        unsub();
+      }
+    };
+  }, [parentId, startDate, endDate, dates, today, hasToday]);
 
   return { dailySummaries, loading, error };
 }

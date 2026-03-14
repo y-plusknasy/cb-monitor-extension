@@ -24,7 +24,7 @@ import { UsageSummaryCard } from "../../components/UsageSummaryCard";
 import { UsageHistoryChart } from "../../components/UsageHistoryChart";
 import { AppUsageRow } from "../../components/AppUsageRow";
 import { LoadingScreen } from "../../components/LoadingScreen";
-import { formatDuration } from "../../lib/formatters";
+import { formatDuration, floorToMinutes } from "../../lib/formatters";
 
 /** セクション内アプリ集計結果 */
 interface AppSummary {
@@ -67,8 +67,8 @@ function buildDeviceSections(
     logsByDevice.set(log.deviceId, arr);
   }
 
-  // deviceTotals 順にセクション構築
-  return deviceTotals.map((dt) => {
+  // deviceTotals 順にセクション構築（後でフロア済み合計で再ソート）
+  const sections = deviceTotals.map((dt) => {
     const deviceLogs = logsByDevice.get(dt.deviceId) ?? [];
 
     // アプリ別集計
@@ -81,23 +81,43 @@ function buildDeviceSections(
       .map(([appName, totalSeconds]) => ({ appName, totalSeconds }))
       .sort((a, b) => b.totalSeconds - a.totalSeconds);
 
+    // デバイス合計 = 各アプリの分単位切り捨て後の合計
+    const deviceTotalSeconds = appSummaries.reduce(
+      (sum, app) => sum + floorToMinutes(app.totalSeconds),
+      0,
+    );
+
     return {
       deviceName: nameMap.get(dt.deviceId) ?? dt.deviceId,
-      deviceTotalSeconds: dt.totalSeconds,
+      deviceTotalSeconds,
       data: appSummaries,
     };
   });
+
+  // フロア済み合計で降順ソート
+  return sections.sort((a, b) => b.deviceTotalSeconds - a.deviceTotalSeconds);
 }
 
 export default function HomeScreen(): React.JSX.Element {
   const { user } = useAuth();
-  const { logs, totalSeconds, deviceTotals, loading } = useUsageLogs(user?.uid);
+  const {
+    logs,
+    totalSeconds: _rawTotalSeconds,
+    deviceTotals,
+    loading,
+  } = useUsageLogs(user?.uid);
   const { devices } = useDevices(user?.uid);
 
   /** デバイス別 → アプリ別にグループ化 */
   const sections = useMemo(
     () => buildDeviceSections(logs, deviceTotals, devices),
     [logs, deviceTotals, devices],
+  );
+
+  /** 全デバイス合計 = 各セクションの丸め済み合計の総和 */
+  const totalSeconds = useMemo(
+    () => sections.reduce((sum, s) => sum + s.deviceTotalSeconds, 0),
+    [sections],
   );
 
   /** deviceId → deviceName マップ（チャート用） */

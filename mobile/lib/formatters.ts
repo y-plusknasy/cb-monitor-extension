@@ -3,6 +3,16 @@
  */
 
 /**
+ * 秒数を分単位に切り捨てる（60秒未満は 0 になる）。
+ *
+ * @param totalSeconds - 合計秒数
+ * @returns 分単位に切り捨てた秒数
+ */
+export function floorToMinutes(totalSeconds: number): number {
+  return Math.floor(totalSeconds / 60) * 60;
+}
+
+/**
  * 秒数を「X時間Y分」形式の文字列に変換する。
  *
  * @param totalSeconds - 合計秒数

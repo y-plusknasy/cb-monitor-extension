@@ -26,8 +26,7 @@ export default function TabsLayout(): React.JSX.Element {
       screenOptions={{
         tabBarActiveTintColor: "#4285F4",
         tabBarInactiveTintColor: "#888",
-        headerStyle: { backgroundColor: "#FFFFFF" },
-        headerTitleStyle: { fontWeight: "600" },
+        headerShown: false,
       }}
     >
       <Tabs.Screen

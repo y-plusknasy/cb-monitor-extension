@@ -4,6 +4,7 @@
 import {
   formatDuration,
   formatDurationShort,
+  floorToMinutes,
   getTodayDateString,
   formatDate,
 } from "./formatters";
@@ -56,6 +57,28 @@ describe("getTodayDateString", () => {
   it("YYYY-MM-DD 形式の文字列を返す", () => {
     const result = getTodayDateString();
     expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+});
+
+describe("floorToMinutes", () => {
+  it("0秒は0を返す", () => {
+    expect(floorToMinutes(0)).toBe(0);
+  });
+
+  it("59秒は0を返す", () => {
+    expect(floorToMinutes(59)).toBe(0);
+  });
+
+  it("60秒は60を返す", () => {
+    expect(floorToMinutes(60)).toBe(60);
+  });
+
+  it("100秒は60を返す（1分に切り捨て）", () => {
+    expect(floorToMinutes(100)).toBe(60);
+  });
+
+  it("3661秒は3660を返す（61分に切り捨て）", () => {
+    expect(floorToMinutes(3661)).toBe(3660);
   });
 });
 

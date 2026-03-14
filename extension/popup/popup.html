@@ -3,65 +3,208 @@
   <head>
     <meta charset="UTF-8" />
     <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
       body {
-        width: 280px;
-        padding: 12px;
+        width: 320px;
         font-family:
           -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         font-size: 13px;
-        color: #333;
-        margin: 0;
+        color: #1f2937;
+        background: #f9fafb;
       }
-      h1 {
-        font-size: 14px;
-        margin: 0 0 12px 0;
-        color: #1a73e8;
-      }
-      .status-row {
+
+      /* ── ヘッダー ── */
+      .header {
         display: flex;
+        align-items: center;
         justify-content: space-between;
-        padding: 6px 0;
-        border-bottom: 1px solid #eee;
+        padding: 12px 16px;
+        background: #1a73e8;
+        color: #fff;
       }
-      .status-row:last-child {
-        border-bottom: none;
+      .header-title {
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
       }
-      .label {
-        color: #666;
+      .status-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #9ca3af;
+        flex-shrink: 0;
       }
-      .value {
-        font-weight: 500;
-        max-width: 160px;
+      .status-dot.paired {
+        background: #34d399;
+      }
+      .status-dot.unpaired {
+        background: #fbbf24;
+      }
+
+      /* ── 計測中アプリ ── */
+      .tracking-section {
+        padding: 10px 16px;
+        background: #fff;
+        border-bottom: 1px solid #e5e7eb;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .tracking-label {
+        font-size: 11px;
+        color: #6b7280;
+        flex-shrink: 0;
+      }
+      .tracking-app {
+        font-weight: 600;
+        color: #059669;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
-      .value.active {
-        color: #0d904f;
+      .tracking-app.inactive {
+        color: #9ca3af;
+        font-weight: 400;
       }
-      .value.inactive {
-        color: #999;
+
+      /* ── 本日の合計 ── */
+      .total-section {
+        padding: 16px;
+        background: #fff;
+        text-align: center;
+        border-bottom: 1px solid #e5e7eb;
+      }
+      .total-label {
+        font-size: 11px;
+        color: #6b7280;
+        margin-bottom: 4px;
+      }
+      .total-value {
+        font-size: 24px;
+        font-weight: 700;
+        color: #1a73e8;
+      }
+
+      /* ── アプリ別内訳 ── */
+      .apps-section {
+        padding: 12px 16px;
+        background: #fff;
+        border-bottom: 1px solid #e5e7eb;
+      }
+      .apps-header {
+        font-size: 11px;
+        color: #6b7280;
+        margin-bottom: 8px;
+      }
+      .app-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 6px;
+      }
+      .app-row:last-child {
+        margin-bottom: 0;
+      }
+      .app-name {
+        width: 100px;
+        font-size: 12px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+      .app-bar-container {
+        flex: 1;
+        height: 14px;
+        background: #e5e7eb;
+        border-radius: 3px;
+        overflow: hidden;
+      }
+      .app-bar {
+        height: 100%;
+        background: #60a5fa;
+        border-radius: 3px;
+        min-width: 2px;
+        transition: width 0.3s ease;
+      }
+      .app-time {
+        font-size: 11px;
+        color: #6b7280;
+        width: 48px;
+        text-align: right;
+        flex-shrink: 0;
+      }
+      .no-data {
+        font-size: 12px;
+        color: #9ca3af;
+        text-align: center;
+        padding: 8px 0;
+      }
+
+      /* ── フッター ── */
+      .footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 16px;
+        background: #f9fafb;
+      }
+      .device-id {
+        font-size: 11px;
+        color: #9ca3af;
+        font-family: monospace;
+      }
+      .settings-link {
+        font-size: 12px;
+        color: #1a73e8;
+        text-decoration: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .settings-link:hover {
+        text-decoration: underline;
       }
     </style>
   </head>
   <body>
-    <h1>Web Usage Tracker</h1>
-    <div class="status-row">
-      <span class="label">計測対象</span>
-      <span class="value" id="current-app">-</span>
+    <!-- ヘッダー -->
+    <div class="header">
+      <span class="header-title">CB Link</span>
+      <span class="status-dot" id="pairing-dot" title="ペアリング状態"></span>
     </div>
-    <div class="status-row">
-      <span class="label">登録状態</span>
-      <span class="value" id="pairing-status">-</span>
+
+    <!-- 計測中アプリ -->
+    <div class="tracking-section">
+      <span class="tracking-label">計測中:</span>
+      <span class="tracking-app" id="current-app">-</span>
     </div>
-    <div class="status-row">
-      <span class="label">デバイスID</span>
-      <span class="value" id="device-id">-</span>
+
+    <!-- 本日の合計 -->
+    <div class="total-section">
+      <div class="total-label">本日の合計</div>
+      <div class="total-value" id="today-total">0 分</div>
     </div>
-    <div class="status-row">
-      <span class="label">本日の合計</span>
-      <span class="value" id="today-total">0 分</span>
+
+    <!-- アプリ別内訳 -->
+    <div class="apps-section">
+      <div class="apps-header">アプリ別</div>
+      <div id="apps-list">
+        <div class="no-data">データなし</div>
+      </div>
     </div>
+
+    <!-- フッター -->
+    <div class="footer">
+      <span class="device-id" id="device-id">-</span>
+      <a class="settings-link" id="open-settings">⚙ 設定</a>
+    </div>
+
     <script src="popup.js" type="module"></script>
   </body>
 </html>

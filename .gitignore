@@ -23,3 +23,6 @@ Thumbs.db
 docs/owner-tasks/
 docs/review/
 imgs/
+
+# Design assets (shared via external means, not tracked in git)
+design-assets/

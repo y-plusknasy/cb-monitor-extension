@@ -21,14 +21,19 @@ import {
   type DocumentData,
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
-import { COLLECTION_DAILY_LOGS } from "../lib/constants";
+import { COLLECTION_DAILY_LOGS, COLLECTION_USAGE_LOGS } from "../lib/constants";
 import {
   useUsageHistory,
   type DailySummary,
   CHART_DAYS,
   MAX_PAGES,
 } from "../hooks/useUsageHistory";
-import { formatDuration, formatDurationShort } from "../lib/formatters";
+import {
+  formatDuration,
+  formatDurationShort,
+  floorToMinutes,
+  getTodayDateString,
+} from "../lib/formatters";
 import { AppUsageRow } from "./AppUsageRow";
 
 /** Props */
@@ -86,7 +91,8 @@ export function UsageHistoryChart({
   }, [dailySummaries]);
 
   /**
-   * バーをタップしたときに日別内訳を取得する
+   * バーをタップしたときに日別内訳を取得する。
+   * 当日分は usageLogs から、過去日分は dailyLogs から取得する。
    */
   const handleBarPress = useCallback(
     async (date: string) => {
@@ -101,8 +107,13 @@ export function UsageHistoryChart({
       setBreakdownLoading(true);
 
       try {
+        // 当日は usageLogs、過去は dailyLogs から取得
+        const today = getTodayDateString();
+        const collectionName =
+          date === today ? COLLECTION_USAGE_LOGS : COLLECTION_DAILY_LOGS;
+
         const q = query(
-          collection(db, COLLECTION_DAILY_LOGS),
+          collection(db, collectionName),
           where("parentId", "==", parentId),
           where("date", "==", date),
         );
@@ -110,7 +121,6 @@ export function UsageHistoryChart({
 
         // デバイス → アプリ別に集計
         const deviceMap = new Map<string, Map<string, number>>();
-        const deviceTotalMap = new Map<string, number>();
 
         for (const docSnap of snapshot.docs) {
           const data = docSnap.data() as DocumentData;
@@ -123,21 +133,23 @@ export function UsageHistoryChart({
           }
           const appMap = deviceMap.get(deviceId)!;
           appMap.set(appName, (appMap.get(appName) ?? 0) + seconds);
-          deviceTotalMap.set(
-            deviceId,
-            (deviceTotalMap.get(deviceId) ?? 0) + seconds,
-          );
         }
 
         const result: DeviceBreakdown[] = Array.from(deviceMap.entries())
-          .map(([deviceId, appMap]) => ({
-            deviceId,
-            deviceName: deviceNameMap?.get(deviceId) ?? deviceId,
-            totalSeconds: deviceTotalMap.get(deviceId) ?? 0,
-            apps: Array.from(appMap.entries())
+          .map(([deviceId, appMap]) => {
+            const apps = Array.from(appMap.entries())
               .map(([appName, totalSeconds]) => ({ appName, totalSeconds }))
-              .sort((a, b) => b.totalSeconds - a.totalSeconds),
-          }))
+              .sort((a, b) => b.totalSeconds - a.totalSeconds);
+            return {
+              deviceId,
+              deviceName: deviceNameMap?.get(deviceId) ?? deviceId,
+              totalSeconds: apps.reduce(
+                (sum, app) => sum + floorToMinutes(app.totalSeconds),
+                0,
+              ),
+              apps,
+            };
+          })
           .sort((a, b) => b.totalSeconds - a.totalSeconds);
 
         setBreakdown(result);

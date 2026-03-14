@@ -31,7 +31,7 @@ export function deriveEndpointUrl(baseEndpoint, functionName) {
  */
 export async function sendUsageLogs(endpoint, logs) {
   if (!endpoint) {
-    console.warn("[WebUsageTracker] API エンドポイントが未設定です");
+    console.warn("[CBLink] API エンドポイントが未設定です");
     return false;
   }
 
@@ -47,7 +47,7 @@ export async function sendUsageLogs(endpoint, logs) {
       if (!response.ok) {
         const errorBody = await response.text();
         console.error(
-          `[WebUsageTracker] API エラー: ${response.status} ${errorBody}`,
+          `[CBLink] API エラー: ${response.status} ${errorBody}`,
         );
         return false;
       }
@@ -55,7 +55,7 @@ export async function sendUsageLogs(endpoint, logs) {
 
     return true;
   } catch (error) {
-    console.error("[WebUsageTracker] ネットワークエラー:", error);
+    console.error("[CBLink] ネットワークエラー:", error);
     return false;
   }
 }
@@ -98,7 +98,7 @@ export async function registerDevice(
     const errorBody = await response.json();
     return { success: false, error: errorBody.error || "unknown_error" };
   } catch (error) {
-    console.error("[WebUsageTracker] ペアリング登録エラー:", error);
+    console.error("[CBLink] ペアリング登録エラー:", error);
     return { success: false, error: "network_error" };
   }
 }

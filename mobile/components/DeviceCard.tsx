@@ -11,6 +11,8 @@ import { formatDate } from "../lib/formatters";
 
 /** Props */
 interface DeviceCardProps {
+  /** デバイスID (UUID) */
+  deviceId: string;
   /** デバイス名 */
   deviceName: string;
   /** 登録日時 (ISO8601) */
@@ -23,6 +25,7 @@ interface DeviceCardProps {
 
 /** デバイス情報カード */
 export function DeviceCard({
+  deviceId,
   deviceName,
   registeredAt,
   syncAvailable,
@@ -43,6 +46,7 @@ export function DeviceCard({
           </Text>
         )}
       </View>
+      <Text style={styles.deviceIdText}>{deviceId}</Text>
       <Text style={styles.registeredAt}>
         登録日: {formatDate(registeredAt)}
       </Text>
@@ -83,6 +87,12 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#333",
     flex: 1,
+  },
+  deviceIdText: {
+    fontSize: 11,
+    color: "#9CA3AF",
+    marginBottom: 4,
+    fontFamily: "monospace",
   },
   warningIcon: {
     fontSize: 18,

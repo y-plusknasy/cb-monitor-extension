@@ -53,13 +53,20 @@ function resolveIconUrl(appName: string, iconUrl?: string): string | null {
   return `https://www.google.com/s2/favicons?domain=${appName}&sz=64`;
 }
 
-/** アプリ別利用時間行 */
+/** 0 分（59 秒以下）の場合は非表示とする閾値 */
+const MIN_DISPLAY_SECONDS = 60;
+
+/** アプリ別利用時間行（totalSeconds < 60 の場合は null を返す） */
 export function AppUsageRow({
   appName,
   totalSeconds,
   displayName,
   iconUrl,
-}: AppUsageRowProps): React.JSX.Element {
+}: AppUsageRowProps): React.JSX.Element | null {
+  if (totalSeconds < MIN_DISPLAY_SECONDS) {
+    return null;
+  }
+
   const resolvedName = resolveDisplayName(appName, displayName);
   const resolvedIcon = resolveIconUrl(appName, iconUrl);
 

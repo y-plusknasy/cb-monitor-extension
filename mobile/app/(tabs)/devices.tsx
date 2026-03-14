@@ -129,6 +129,7 @@ export default function DevicesScreen(): React.JSX.Element {
         }
         renderItem={({ item }) => (
           <DeviceCard
+            deviceId={item.deviceId}
             deviceName={item.deviceName}
             registeredAt={item.registeredAt}
             syncAvailable={item.syncAvailable}

@@ -88,10 +88,7 @@ async function restoreFromSyncBackup() {
       apiEndpoint: backup.apiEndpoint || null,
     };
   } catch (error) {
-    console.warn(
-      "[WebUsageTracker] chrome.storage.sync からの復元に失敗:",
-      error,
-    );
+    console.warn("[CBLink] chrome.storage.sync からの復元に失敗:", error);
     return null;
   }
 }
@@ -124,13 +121,13 @@ async function initialize() {
         await setStorage(STORAGE_KEY_API_ENDPOINT, restored.apiEndpoint);
       }
       console.log(
-        "[WebUsageTracker] chrome.storage.sync から deviceId を復元:",
+        "[CBLink] chrome.storage.sync から deviceId を復元:",
         deviceId,
       );
     } else {
       deviceId = crypto.randomUUID();
       await setStorage(STORAGE_KEY_DEVICE_ID, deviceId);
-      console.log("[WebUsageTracker] 新規 deviceId を生成:", deviceId);
+      console.log("[CBLink] 新規 deviceId を生成:", deviceId);
     }
   }
   state.deviceId = deviceId;
@@ -141,7 +138,7 @@ async function initialize() {
   const prevSession = await getStorage(STORAGE_KEY_TRACKING_SESSION);
   if (prevSession) {
     console.log(
-      `[WebUsageTracker] 前回セッション破棄: ${prevSession.appName} (Service Worker 再起動のため)`,
+      `[CBLink] 前回セッション破棄: ${prevSession.appName} (Service Worker 再起動のため)`,
     );
     await setStorage(STORAGE_KEY_TRACKING_SESSION, null);
   }
@@ -171,7 +168,7 @@ async function initialize() {
 
   // 定期送信アラームの登録（1分間隔）
   await chrome.alarms.create(ALARM_NAME_FLUSH, { periodInMinutes: 1 });
-  console.log("[WebUsageTracker] 初期化完了 deviceId:", deviceId);
+  console.log("[CBLink] 初期化完了 deviceId:", deviceId);
 }
 
 // ---------------------------------------------------------------------------
@@ -192,7 +189,7 @@ async function startTracking(appName) {
     startTime: state.trackingStartTime,
   });
 
-  console.log("[WebUsageTracker] 計測開始:", appName);
+  console.log("[CBLink] 計測開始:", appName);
 }
 
 /**
@@ -259,7 +256,7 @@ async function stopTracking() {
   await setStorage(STORAGE_KEY_DAILY_USAGE, dailyUsage);
 
   console.log(
-    `[WebUsageTracker] 計測停止: ${state.currentAppName} (${durationSeconds}秒)`,
+    `[CBLink] 計測停止: ${state.currentAppName} (${durationSeconds}秒)`,
   );
 
   state.currentAppName = null;
@@ -279,7 +276,7 @@ async function stopTracking() {
 async function flushUsageData() {
   const endpoint = await getStorage(STORAGE_KEY_API_ENDPOINT);
   if (!endpoint) {
-    console.warn("[WebUsageTracker] API エンドポイント未設定。送信スキップ");
+    console.warn("[CBLink] API エンドポイント未設定。送信スキップ");
     return;
   }
 
@@ -329,11 +326,9 @@ async function flushUsageData() {
       if (date < today && !sentDates.includes(date)) {
         sentDates.push(date);
       }
-      console.log(
-        `[WebUsageTracker] ${date} のログを送信完了 (${logs.length} アプリ)`,
-      );
+      console.log(`[CBLink] ${date} のログを送信完了 (${logs.length} アプリ)`);
     } else {
-      console.warn(`[WebUsageTracker] ${date} のログ送信失敗。次回リトライ`);
+      console.warn(`[CBLink] ${date} のログ送信失敗。次回リトライ`);
       break; // 1件失敗したら残りも中断（ネットワーク障害の可能性）
     }
   }
@@ -401,10 +396,10 @@ async function handleWindowFocusChanged(windowId) {
     if (appName) {
       await startTracking(appName);
     } else {
-      console.log("[WebUsageTracker] appName を特定できないウィンドウ");
+      console.log("[CBLink] appName を特定できないウィンドウ");
     }
   } catch (error) {
-    console.error("[WebUsageTracker] ウィンドウ情報取得エラー:", error);
+    console.error("[CBLink] ウィンドウ情報取得エラー:", error);
   }
 }
 
@@ -426,8 +421,12 @@ function handleMessage(message, _sender, sendResponse) {
       const dailyUsage = await getStorage(STORAGE_KEY_DAILY_USAGE);
       const today = getToday();
       const todayUsage = dailyUsage?.[today] || {};
+      // 各アプリの秒数を分単位に切り捨ててから合計する
       const todayTotalSeconds = Object.values(todayUsage).reduce(
-        (sum, entry) => sum + (entry.totalSeconds || 0),
+        (sum, entry) => {
+          const seconds = entry.totalSeconds || 0;
+          return sum + Math.floor(seconds / 60) * 60;
+        },
         0,
       );
 
