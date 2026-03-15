@@ -119,11 +119,16 @@ export default function SettingsScreen(): React.JSX.Element {
         {/* ログアウトボタン */}
         <View style={styles.section}>
           <TouchableOpacity
-            style={[styles.signOutButton, { borderColor: colors.warning }]}
+            style={[
+              styles.signOutButton,
+              { borderColor: colors.accent, backgroundColor: colors.accent },
+            ]}
             onPress={handleSignOut}
             activeOpacity={0.7}
           >
-            <Text style={[styles.signOutButtonText, { color: colors.warning }]}>
+            <Text
+              style={[styles.signOutButtonText, { color: colors.background }]}
+            >
               ログアウト
             </Text>
           </TouchableOpacity>

@@ -54,7 +54,7 @@ export const aggregateDailyLogs = onSchedule("every day 15:00", async () => {
       batch.set(
         db.collection(COLLECTION_DAILY_LOGS).doc(docId),
         {
-          parentId: entry.parentId,
+          parentIds: entry.parentIds,
           deviceId: entry.deviceId,
           appName: entry.appName,
           date: yesterday,
@@ -82,7 +82,7 @@ export const aggregateDailyLogs = onSchedule("every day 15:00", async () => {
 
 /** 集計エントリの型 */
 export interface AggregatedEntry {
-  parentId: string;
+  parentIds: string[];
   deviceId: string;
   appName: string;
   totalSeconds: number;
@@ -103,7 +103,7 @@ export function aggregateUsageLogs(
     const data = doc.data();
     const deviceId = data.deviceId as string;
     const appName = data.appName as string;
-    const parentId = data.parentId as string;
+    const parentIds = data.parentIds as string[];
     const totalSeconds = (data.totalSeconds as number) ?? 0;
 
     const key = `${deviceId}_${appName}`;
@@ -111,8 +111,19 @@ export function aggregateUsageLogs(
 
     if (existing) {
       existing.totalSeconds += totalSeconds;
+      // parentIds をマージ（重複排除）
+      for (const pid of parentIds) {
+        if (!existing.parentIds.includes(pid)) {
+          existing.parentIds.push(pid);
+        }
+      }
     } else {
-      map.set(key, { parentId, deviceId, appName, totalSeconds });
+      map.set(key, {
+        parentIds: [...parentIds],
+        deviceId,
+        appName,
+        totalSeconds,
+      });
     }
   }
 

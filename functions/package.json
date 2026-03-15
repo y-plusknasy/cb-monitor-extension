@@ -2,6 +2,7 @@
   "name": "cb-monitor-functions",
   "version": "0.1.0",
   "description": "Firebase Functions for CB Link",
+  "type": "module",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",

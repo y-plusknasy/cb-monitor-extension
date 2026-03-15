@@ -63,6 +63,7 @@ const safeDeviceName = z
   .min(1)
   .max(100)
   .regex(
+    // eslint-disable-next-line no-control-regex -- 意図的に制御文字を検出するパターン
     /^[^\x00-\x1f\\]*$/,
     "deviceName に制御文字やバックスラッシュは使用できません",
   );

@@ -101,7 +101,7 @@ export function useUsageLogs(
 
     const q = query(
       collection(db, COLLECTION_USAGE_LOGS),
-      where("parentId", "==", parentId),
+      where("parentIds", "array-contains", parentId),
       where("date", "==", targetDate),
     );
 

@@ -146,7 +146,7 @@ Firebase Auth 状態を監視 (onAuthStateChanged)
 **データ取得方法:**
 
 - Firestore `usageLogs` コレクションに対して以下のクエリを `onSnapshot` で購読:
-  - `where("parentId", "==", currentUser.uid)`
+  - `where("parentIds", "array-contains", currentUser.uid)`
   - `where("date", "==", today)` （`today` = `YYYY-MM-DD` 形式）
 - クエリ結果を合計して「今日の合計利用時間」を算出
 - `aggregateByDevice()` でデバイス別合計を集計
@@ -260,7 +260,7 @@ function useUsageLogs(
 **実装方針:**
 
 - `parentId` が存在する場合のみ `onSnapshot` リスナーを開始
-- クエリ: `usageLogs` where `parentId == parentId` and `date == targetDate`
+- クエリ: `usageLogs` where `parentIds` array-contains `parentId` and `date == targetDate`
 - `aggregateByDevice()` でデバイス別合計を算出
 - クリーンアップ時にリスナーを解除
 
@@ -457,7 +457,7 @@ async function generateOtp(
 ```typescript
 firestore()
   .collection("usageLogs")
-  .where("parentId", "==", uid)
+  .where("parentIds", "array-contains", uid)
   .where("date", "==", todayString)
   .onSnapshot((snapshot) => {
     const logs = snapshot.docs.map((doc) => doc.data());

@@ -35,7 +35,7 @@ sequenceDiagram
         Functions-->>Extension: 400 {error: "otp_expired"}
     else OTP 有効
         Functions->>Firestore: トランザクション実行
-        Note right of Firestore: - oneTimeCodes/{otp}.used = true<br/>- devices/{deviceId} 作成<br/>  {parentId, deviceName, registeredAt,<br/>   lastSeenAt, syncAvailable}<br/>- users/{parentId}.childDevices に追加
+        Note right of Firestore: - oneTimeCodes/{otp}.used = true<br/>- devices/{deviceId} 作成/更新<br/>  {parentIds: [parentId], deviceName, registeredAt,<br/>   lastSeenAt, syncAvailable}<br/>- users/{parentId}.childDevices に追加
         Functions-->>Extension: {status: "paired"}
     end
 
@@ -67,7 +67,7 @@ sequenceDiagram
                 Functions-->>Extension: 401 {error: "unknown_device"}
             else 登録済み
                 Functions->>Firestore: devices/{deviceId}.lastSeenAt 更新
-                Functions->>Firestore: usageLogs/{docId} upsert<br/>{parentId, deviceId, date, appName, ...}
+                Functions->>Firestore: usageLogs/{docId} upsert<br/>{parentIds, deviceId, date, appName, ...}
                 Functions-->>Extension: {status: "ok"}
             end
         end

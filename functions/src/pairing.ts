@@ -100,7 +100,7 @@ export const generateOtp = onRequest({ cors: true }, async (req, res) => {
  * Chrome Extension から OTP + deviceId を受け取り、デバイスを保護者アカウントに紐付ける。
  *
  * - OTP の有効性を検証（存在・未使用・有効期限内）
- * - devices コレクションに deviceId → parentId マッピングを作成
+ * - devices コレクションに deviceId → parentIds マッピングを作成（再ペアリング時は配列に追加）
  * - users コレクションの childDevices 配列にデバイス情報を追加
  */
 export const registerDevice = onRequest({ cors: true }, async (req, res) => {
@@ -148,18 +148,31 @@ export const registerDevice = onRequest({ cors: true }, async (req, res) => {
 
   // トランザクションで整合性を保証
   await db.runTransaction(async (tx) => {
+    // Firestore トランザクションでは全ての読み取りを書き込みより前に行う必要がある
+    const deviceRef = db.collection(COLLECTION_DEVICES).doc(deviceId);
+    const deviceDoc = await tx.get(deviceRef);
+
     // OTP を使用済みにマーク
     tx.update(otpRef, { used: true });
 
-    // devices コレクションにマッピングを作成
-    const deviceRef = db.collection(COLLECTION_DEVICES).doc(deviceId);
-    tx.set(deviceRef, {
-      parentId,
-      deviceName,
-      registeredAt,
-      lastSeenAt: Timestamp.now(),
-      syncAvailable: syncAvailable ?? null,
-    });
+    if (deviceDoc.exists) {
+      // 再ペアリング: parentIds 配列に追加
+      tx.update(deviceRef, {
+        parentIds: FieldValue.arrayUnion(parentId),
+        deviceName,
+        lastSeenAt: Timestamp.now(),
+        syncAvailable: syncAvailable ?? null,
+      });
+    } else {
+      // 初回ペアリング: 新規作成
+      tx.set(deviceRef, {
+        parentIds: [parentId],
+        deviceName,
+        registeredAt,
+        lastSeenAt: Timestamp.now(),
+        syncAvailable: syncAvailable ?? null,
+      });
+    }
 
     // users の childDevices 配列に追加
     const userRef = db.collection(COLLECTION_USERS).doc(parentId);

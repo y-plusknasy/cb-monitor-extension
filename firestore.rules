@@ -14,34 +14,34 @@ service cloud.firestore {
 
     // -----------------------------------------------------------------------
     // usageLogs コレクション
-    // 認証ユーザーは自分の parentId に紐づくドキュメントのみ読み取り可能
+    // 認証ユーザーは自分の parentIds に含まれるドキュメントのみ読み取り可能
     // 書き込みは Admin SDK (Cloud Functions) のみ
     // -----------------------------------------------------------------------
     match /usageLogs/{logId} {
       allow read: if request.auth != null
-                  && resource.data.parentId == request.auth.uid;
+                  && request.auth.uid in resource.data.parentIds;
       allow write: if false;
     }
 
     // -----------------------------------------------------------------------
     // dailyLogs コレクション
-    // 認証ユーザーは自分の parentId に紐づくドキュメントのみ読み取り可能
+    // 認証ユーザーは自分の parentIds に含まれるドキュメントのみ読み取り可能
     // 書き込みは Admin SDK (Cloud Functions) のみ
     // -----------------------------------------------------------------------
     match /dailyLogs/{logId} {
       allow read: if request.auth != null
-                  && resource.data.parentId == request.auth.uid;
+                  && request.auth.uid in resource.data.parentIds;
       allow write: if false;
     }
 
     // -----------------------------------------------------------------------
     // devices コレクション
-    // 認証ユーザーは自分の parentId に紐づくドキュメントのみ読み取り可能
+    // 認証ユーザーは自分の parentIds に含まれるドキュメントのみ読み取り可能
     // 書き込みは Admin SDK (Cloud Functions) のみ
     // -----------------------------------------------------------------------
     match /devices/{deviceId} {
       allow read: if request.auth != null
-                  && resource.data.parentId == request.auth.uid;
+                  && request.auth.uid in resource.data.parentIds;
       allow write: if false;
     }
 

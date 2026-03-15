@@ -140,7 +140,7 @@ export function useUsageHistory(
     // dailyLogs リスナー（前日以前のデータ）
     const dailyQ = query(
       collection(db, COLLECTION_DAILY_LOGS),
-      where("parentId", "==", parentId),
+      where("parentIds", "array-contains", parentId),
       where("date", ">=", startDate),
       where("date", "<=", endDate),
     );
@@ -175,7 +175,7 @@ export function useUsageHistory(
     if (hasToday) {
       const usageQ = query(
         collection(db, COLLECTION_USAGE_LOGS),
-        where("parentId", "==", parentId),
+        where("parentIds", "array-contains", parentId),
         where("date", "==", today),
       );
 

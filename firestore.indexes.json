@@ -4,7 +4,7 @@
       "collectionGroup": "usageLogs",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "parentId", "order": "ASCENDING" },
+        { "fieldPath": "parentIds", "arrayConfig": "CONTAINS" },
         { "fieldPath": "date", "order": "ASCENDING" }
       ]
     },
@@ -12,7 +12,7 @@
       "collectionGroup": "dailyLogs",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "parentId", "order": "ASCENDING" },
+        { "fieldPath": "parentIds", "arrayConfig": "CONTAINS" },
         { "fieldPath": "date", "order": "ASCENDING" }
       ]
     },

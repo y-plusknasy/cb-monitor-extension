@@ -48,5 +48,8 @@ export const UNLINKED_BUFFER_RETENTION_DAYS = 14;
 /** chrome.storage のキー: ペアリング状態 */
 export const STORAGE_KEY_PAIRING_STATUS = "pairingStatus";
 
+/** chrome.storage のキー: 最後にクリーンアップを実行した日付 (YYYY-MM-DD) */
+export const STORAGE_KEY_LAST_CLEANUP_DATE = "lastCleanupDate";
+
 /** chrome.storage.sync のキー: デバイスバックアップ（deviceId 復旧用） */
 export const SYNC_KEY_DEVICE_BACKUPS = "deviceBackups";

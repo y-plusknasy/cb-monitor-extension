@@ -13,7 +13,7 @@ export const COLLECTION_USERS = "users";
 /** oneTimeCodes コレクション名 */
 export const COLLECTION_ONE_TIME_CODES = "oneTimeCodes";
 
-/** devices コレクション名（deviceId → parentId 逆引き用） */
+/** devices コレクション名（deviceId → parentIds 逆引き用） */
 export const COLLECTION_DEVICES = "devices";
 
 /** dailyLogs コレクション名 */

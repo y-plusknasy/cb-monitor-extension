@@ -18,6 +18,7 @@ import {
   STORAGE_KEY_SENT_DATES,
   STORAGE_KEY_LAST_SENT_ETAG,
   STORAGE_KEY_PAIRING_STATUS,
+  STORAGE_KEY_LAST_CLEANUP_DATE,
   SYNC_KEY_DEVICE_BACKUPS,
   ALARM_NAME_FLUSH,
   MIN_DURATION_SECONDS,
@@ -354,6 +355,29 @@ async function flushUsageData() {
  * - 過去日付データを API に送信
  */
 async function flushOnAlarm() {
+  // 1日1回のクリーンアップ（ADR-007）
+  const today = getToday();
+  const lastCleanupDate = await getStorage(STORAGE_KEY_LAST_CLEANUP_DATE);
+  if (lastCleanupDate !== today) {
+    const pairingStatus = await getStorage(STORAGE_KEY_PAIRING_STATUS);
+    const retentionDays = pairingStatus
+      ? BUFFER_RETENTION_DAYS
+      : UNLINKED_BUFFER_RETENTION_DAYS;
+
+    const dailyUsage = (await getStorage(STORAGE_KEY_DAILY_USAGE)) || {};
+    const pruned = pruneOldDates(dailyUsage, retentionDays);
+    await setStorage(STORAGE_KEY_DAILY_USAGE, pruned);
+
+    const sentDates = (await getStorage(STORAGE_KEY_SENT_DATES)) || [];
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - retentionDays + 1);
+    const cleanedSentDates = sentDates.filter((d) => d >= getToday(cutoff));
+    await setStorage(STORAGE_KEY_SENT_DATES, cleanedSentDates);
+
+    await setStorage(STORAGE_KEY_LAST_CLEANUP_DATE, today);
+    console.log("[CBLink] 日次クリーンアップ完了");
+  }
+
   const wasTracking = state.currentAppName;
 
   if (wasTracking) {

@@ -113,7 +113,7 @@ export function UsageHistoryChart({
 
         const q = query(
           collection(db, collectionName),
-          where("parentId", "==", parentId),
+          where("parentIds", "array-contains", parentId),
           where("date", "==", date),
         );
         const snapshot = await getDocs(q);

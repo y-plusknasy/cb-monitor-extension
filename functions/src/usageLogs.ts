@@ -22,7 +22,7 @@ import {
  *
  * S02: deviceId が devices コレクションに登録済みかどうかを検証し、
  * 未登録デバイスからのリクエストは 401 で拒否する。
- * 登録済みデバイスの場合は、devices コレクションから取得した parentId を使用する。
+ * 登録済みデバイスの場合は、devices コレクションから取得した parentIds を使用する。
  *
  * S04: レート制限（デバイス単位・分間ウィンドウ）と日付バリデーションを追加。
  */
@@ -47,13 +47,13 @@ export const usageLogs = onRequest({ cors: true }, async (req, res) => {
 
   const db = getDb();
 
-  // deviceId の登録検証: devices コレクションから parentId を逆引き
+  // deviceId の登録検証: devices コレクションから parentIds を逆引き
   const deviceDoc = await db.collection(COLLECTION_DEVICES).doc(deviceId).get();
   if (!deviceDoc.exists) {
     res.status(401).json({ error: "unknown_device" });
     return;
   }
-  const parentId = deviceDoc.data()!.parentId as string;
+  const parentIds = deviceDoc.data()!.parentIds as string[];
 
   // レート制限: デバイス単位の分間ウィンドウ
   const deviceData = deviceDoc.data()!;
@@ -109,7 +109,7 @@ export const usageLogs = onRequest({ cors: true }, async (req, res) => {
     .doc(docId)
     .set(
       {
-        parentId,
+        parentIds,
         deviceId,
         date,
         appName,

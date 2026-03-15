@@ -99,7 +99,7 @@ cb-monitor-extension/
 
 ### 3.3 データ保存・ライフサイクル (Data Retention)
 
-- **Firestore保存**: Firebase Functions が `deviceId` から親UIDを逆引きし、`parentId` を付与してログを保存。
+- **Firestore保存**: Firebase Functions が `deviceId` から親UIDを逆引きし、`parentIds` (保護者UID配列) を付与してログを保存。1つのデバイスに対して複数の保護者を紐付け可能（ADR-006）。
 - **データ保持期間**:
   - **30日間**: モバイルアプリでの可視化用に保持。
   - **自動削除**: FirestoreのTTL (Time To Live) 機能を使用し、作成から30日経過したドキュメントを自動削除。
@@ -120,10 +120,12 @@ cb-monitor-extension/
 
 - **`users` (Collection)**
   - `{parentUid}`: { parentUid, email, displayName, childDevices: [{deviceId, deviceName, registeredAt}], createdAt }
+- **`devices` (Collection)** — deviceId → parentIds マッピング（ADR-006: 複数保護者対応）
+  - `{deviceId}`: { parentIds: [parentUid, ...], deviceName, registeredAt, lastSeenAt, syncAvailable }
 - **`usageLogs` (Collection)** — TTL: 30日
-  - `{logId}`: { parentId, deviceId, appName, durationSeconds, timestamp, expireAt }
+  - `{deviceId}_{date}_{appName}`: { parentIds: [parentUid, ...], deviceId, appName, totalSeconds, lastUpdated, expireAt }
 - **`dailyLogs` (Collection)** — TTL: 84日（約12週間）
-  - `{deviceId}_{appName}_{YYYY-MM-DD}`: { parentId, deviceId, appName, date, totalMinutes, updatedAt, expireAt }
+  - `{deviceId}_{appName}_{YYYY-MM-DD}`: { parentIds: [parentUid, ...], deviceId, appName, date, totalMinutes, updatedAt, expireAt }
   - 1レコード = deviceId-appName の組み合わせの1日の利用時間合計（分）
 - **`appRegistry` (Collection)** — グローバル（ユーザー非依存）
   - `{domain}`: { domain, displayName, iconUrl, category, updatedAt }

@@ -20,21 +20,21 @@ describe("aggregateUsageLogs", () => {
   it("複数デバイス・複数アプリを正しく集計する", () => {
     const docs = [
       mockDoc({
-        parentId: "parent-1",
+        parentIds: ["parent-1"],
         deviceId: "device-a",
         appName: "youtube.com",
         totalSeconds: 1200,
         date: "2026-03-11",
       }),
       mockDoc({
-        parentId: "parent-1",
+        parentIds: ["parent-1"],
         deviceId: "device-a",
         appName: "chrome",
         totalSeconds: 600,
         date: "2026-03-11",
       }),
       mockDoc({
-        parentId: "parent-1",
+        parentIds: ["parent-1"],
         deviceId: "device-b",
         appName: "youtube.com",
         totalSeconds: 300,
@@ -48,7 +48,7 @@ describe("aggregateUsageLogs", () => {
 
     const ytA = result.get("device-a_youtube.com")!;
     expect(ytA.totalSeconds).toBe(1200);
-    expect(ytA.parentId).toBe("parent-1");
+    expect(ytA.parentIds).toEqual(["parent-1"]);
     expect(ytA.deviceId).toBe("device-a");
     expect(ytA.appName).toBe("youtube.com");
 
@@ -62,14 +62,14 @@ describe("aggregateUsageLogs", () => {
   it("同一デバイス・同一アプリの秒数を合算する", () => {
     const docs = [
       mockDoc({
-        parentId: "parent-1",
+        parentIds: ["parent-1"],
         deviceId: "device-a",
         appName: "chrome",
         totalSeconds: 100,
         date: "2026-03-11",
       }),
       mockDoc({
-        parentId: "parent-1",
+        parentIds: ["parent-1"],
         deviceId: "device-a",
         appName: "chrome",
         totalSeconds: 200,

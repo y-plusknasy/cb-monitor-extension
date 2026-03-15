@@ -132,10 +132,10 @@ export function useDevices(uid: string | undefined): DevicesState {
       },
     );
 
-    // リスナー 2: devices コレクション (parentId == uid)
+    // リスナー 2: devices コレクション (parentIds array-contains uid)
     const devicesQuery = query(
       collection(db, COLLECTION_DEVICES),
-      where("parentId", "==", uid),
+      where("parentIds", "array-contains", uid),
     );
     const unsubDevices = onSnapshot(
       devicesQuery,
