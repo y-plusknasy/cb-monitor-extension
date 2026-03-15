@@ -1,4 +1,4 @@
-# 基本設計書: Web利用時間トラッカー (Basic Design Document)
+# 基本設計書: CB Link (Basic Design Document)
 
 > 本ドキュメントは `docs/functional-requirements.md` の要求仕様に基づく基本設計である。
 

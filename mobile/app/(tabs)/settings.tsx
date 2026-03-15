@@ -13,6 +13,7 @@ import {
   Alert,
   Platform,
 } from "react-native";
+import { Sun, Moon } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { useAuth } from "../../hooks/useAuth";
 import { useTheme } from "../../contexts/ThemeContext";
@@ -67,9 +68,13 @@ export default function SettingsScreen(): React.JSX.Element {
               activeOpacity={0.7}
             >
               <View style={styles.themeLabel}>
-                <Text style={styles.themeIcon}>
-                  {theme === "dark" ? "🌙" : "☀️"}
-                </Text>
+                <View style={styles.themeIcon}>
+                  {theme === "dark" ? (
+                    <Moon size={20} color={colors.textSecondary} />
+                  ) : (
+                    <Sun size={20} color={colors.textSecondary} />
+                  )}
+                </View>
                 <Text style={[styles.infoLabel, { color: colors.textPrimary }]}>
                   テーマ
                 </Text>
@@ -171,7 +176,10 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   themeIcon: {
-    fontSize: 20,
+    width: 20,
+    height: 20,
+    alignItems: "center",
+    justifyContent: "center",
   },
   themeValue: {
     fontSize: 15,

@@ -6,7 +6,8 @@
  */
 import React from "react";
 import { Tabs } from "expo-router";
-import { Text } from "react-native";
+import { View } from "react-native";
+import { Home, Laptop, Settings } from "lucide-react-native";
 import { useTheme } from "../../contexts/ThemeContext";
 
 /** タブアイコン用テキストコンポーネント */
@@ -16,20 +17,20 @@ function TabIcon({
   activeColor,
   inactiveColor,
 }: {
-  label: string;
+  label: React.ReactNode;
   focused: boolean;
   activeColor: string;
   inactiveColor: string;
 }): React.JSX.Element {
   return (
-    <Text
+    <View
       style={{
-        fontSize: 20,
-        color: focused ? activeColor : inactiveColor,
+        alignItems: "center",
+        justifyContent: "center",
       }}
     >
       {label}
-    </Text>
+    </View>
   );
 }
 
@@ -44,6 +45,8 @@ export default function TabsLayout(): React.JSX.Element {
         tabBarStyle: {
           backgroundColor: colors.tabBar,
           borderTopColor: colors.border,
+          height: 60,
+          paddingBottom: 6,
         },
         headerShown: false,
       }}
@@ -54,7 +57,12 @@ export default function TabsLayout(): React.JSX.Element {
           title: "ホーム",
           tabBarIcon: ({ focused }) => (
             <TabIcon
-              label="🏠"
+              label={
+                <Home
+                  size={24}
+                  color={focused ? colors.tabActive : colors.tabInactive}
+                />
+              }
               focused={focused}
               activeColor={colors.tabActive}
               inactiveColor={colors.tabInactive}
@@ -68,7 +76,12 @@ export default function TabsLayout(): React.JSX.Element {
           title: "デバイス",
           tabBarIcon: ({ focused }) => (
             <TabIcon
-              label="💻"
+              label={
+                <Laptop
+                  size={24}
+                  color={focused ? colors.tabActive : colors.tabInactive}
+                />
+              }
               focused={focused}
               activeColor={colors.tabActive}
               inactiveColor={colors.tabInactive}
@@ -82,7 +95,12 @@ export default function TabsLayout(): React.JSX.Element {
           title: "設定",
           tabBarIcon: ({ focused }) => (
             <TabIcon
-              label="⚙️"
+              label={
+                <Settings
+                  size={24}
+                  color={focused ? colors.tabActive : colors.tabInactive}
+                />
+              }
               focused={focused}
               activeColor={colors.tabActive}
               inactiveColor={colors.tabInactive}

@@ -98,7 +98,7 @@
 - 全画面のカードが角丸 28px のフラットデザインになっている
 - ボタンが pill 形状（角丸 28px）になっている
 - アプリ別行が角丸 24px のカード形式になっている
-- タブバーのアイコンが絵文字からシンプルなテキストラベルに変更されている
+- タブバーのアイコンが絵文字から lucide-react-native の SVG アイコンに変更されている
 - ダークテーマでオレンジ系アクセント、ライトテーマで青系アクセントが使われている
 
 ---
@@ -114,20 +114,20 @@
 
 ### 4.2 変更対象ファイル
 
-| ファイル                           | 変更内容                                     |
-| ---------------------------------- | -------------------------------------------- |
-| `app/_layout.tsx`                  | ThemeProvider でラップ                       |
-| `app/(tabs)/_layout.tsx`           | テーマ対応タブバー、絵文字→ テキストアイコン |
-| `app/(tabs)/index.tsx`             | テーマ対応スタイル                           |
-| `app/(tabs)/devices.tsx`           | テーマ対応スタイル、Material カード          |
-| `app/(tabs)/settings.tsx`          | テーマ切替ボタン追加、テーマ対応、リブランド |
-| `app/(auth)/login.tsx`             | テーマ対応、リブランド                       |
-| `components/UsageSummaryCard.tsx`  | テーマ対応、デザイン刷新                     |
-| `components/UsageHistoryChart.tsx` | テーマ対応、デザイン刷新                     |
-| `components/AppUsageRow.tsx`       | テーマ対応、カード形式に変更                 |
-| `components/DeviceCard.tsx`        | テーマ対応、Material カード                  |
-| `components/OtpDisplay.tsx`        | テーマ対応、Material カード                  |
-| `components/LoadingScreen.tsx`     | テーマ対応                                   |
+| ファイル                           | 変更内容                                                       |
+| ---------------------------------- | -------------------------------------------------------------- |
+| `app/_layout.tsx`                  | ThemeProvider でラップ                                         |
+| `app/(tabs)/_layout.tsx`           | テーマ対応タブバー、絵文字→ SVG アイコン (lucide-react-native) |
+| `app/(tabs)/index.tsx`             | テーマ対応スタイル                                             |
+| `app/(tabs)/devices.tsx`           | テーマ対応スタイル、Material カード                            |
+| `app/(tabs)/settings.tsx`          | テーマ切替ボタン追加、テーマ対応、リブランド                   |
+| `app/(auth)/login.tsx`             | テーマ対応、リブランド                                         |
+| `components/UsageSummaryCard.tsx`  | テーマ対応、デザイン刷新                                       |
+| `components/UsageHistoryChart.tsx` | テーマ対応、デザイン刷新                                       |
+| `components/AppUsageRow.tsx`       | テーマ対応、カード形式に変更                                   |
+| `components/DeviceCard.tsx`        | テーマ対応、Material カード                                    |
+| `components/OtpDisplay.tsx`        | テーマ対応、Material カード                                    |
+| `components/LoadingScreen.tsx`     | テーマ対応                                                     |
 
 ---
 

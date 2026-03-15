@@ -54,7 +54,7 @@
 ```json
 {
   "manifest_version": 3,
-  "name": "Web Usage Tracker",
+  "name": "CB Link",
   "version": "0.1.0",
   "description": "ブラウザ利用時間を監視・記録する拡張機能",
   "permissions": ["tabs", "storage", "alarms"],

@@ -36,46 +36,48 @@ export function DeviceCard({
   const showSyncWarning = syncAvailable === false;
 
   return (
-    <View
-      style={[
-        styles.card,
-        { backgroundColor: colors.card, borderLeftColor: colors.deviceBorder },
-      ]}
-    >
-      <View style={styles.header}>
-        <Text style={[styles.deviceName, { color: colors.textPrimary }]}>
-          {deviceName}
+    <View style={[styles.card, { backgroundColor: colors.card }]}>
+      <View style={[styles.indicator, { backgroundColor: colors.primary }]} />
+
+      <View style={styles.content}>
+        <View style={styles.header}>
+          <Text style={[styles.deviceName, { color: colors.textPrimary }]}>
+            {deviceName}
+          </Text>
+          {showSyncWarning && (
+            <Text
+              style={styles.warningIcon}
+              accessibilityLabel="バックアップ不可"
+            >
+              ⚠️
+            </Text>
+          )}
+        </View>
+        <Text style={[styles.deviceIdText, { color: colors.textSecondary }]}>
+          ID: {deviceId}
         </Text>
+        <Text style={[styles.registeredAt, { color: colors.textSecondary }]}>
+          登録日: {formatDate(registeredAt)}
+        </Text>
+        {lastSeenAt && (
+          <Text style={[styles.lastSeen, { color: colors.textSecondary }]}>
+            最終通信: {formatDate(lastSeenAt)}
+          </Text>
+        )}
         {showSyncWarning && (
           <Text
-            style={styles.warningIcon}
-            accessibilityLabel="バックアップ不可"
+            style={[
+              styles.warningText,
+              {
+                color: colors.syncWarningText,
+                backgroundColor: colors.syncWarningBg,
+              },
+            ]}
           >
-            ⚠️
+            バックアップ不可: キャッシュ削除で監視が解除される可能性があります
           </Text>
         )}
       </View>
-      <Text style={[styles.registeredAt, { color: colors.textSecondary }]}>
-        登録日: {formatDate(registeredAt)}
-      </Text>
-      {lastSeenAt && (
-        <Text style={[styles.lastSeen, { color: colors.textSecondary }]}>
-          最終通信: {formatDate(lastSeenAt)}
-        </Text>
-      )}
-      {showSyncWarning && (
-        <Text
-          style={[
-            styles.warningText,
-            {
-              color: colors.syncWarningText,
-              backgroundColor: colors.syncWarningBg,
-            },
-          ]}
-        >
-          バックアップ不可: キャッシュ削除で監視が解除される可能性があります
-        </Text>
-      )}
     </View>
   );
 }
@@ -86,7 +88,18 @@ const styles = StyleSheet.create({
     padding: 24,
     marginHorizontal: 16,
     marginTop: 12,
-    borderLeftWidth: 4,
+    flexDirection: "row",
+    overflow: "hidden",
+    elevation: 2,
+  },
+  indicator: {
+    width: 6,
+    borderRadius: 3,
+    marginLeft: 12,
+  },
+  content: {
+    flex: 1,
+    paddingLeft: 12,
   },
   header: {
     flexDirection: "row",
@@ -97,6 +110,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "600",
     flex: 1,
+  },
+  deviceIdText: {
+    fontSize: 11,
+    marginBottom: 4,
+    fontFamily: "monospace",
   },
   warningIcon: {
     fontSize: 18,

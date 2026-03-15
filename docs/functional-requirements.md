@@ -1,4 +1,4 @@
-# 要求仕様書: Web利用時間トラッカー (Functional Requirements Document)
+# 要求仕様書: CB Link (Functional Requirements Document)
 
 ## 1. システム概要 (System Overview)
 
