@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>プライバシーポリシー — CB Link</title>
+    <link rel="stylesheet" href="assets/style.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container">
+        <h1>CB Link</h1>
+        <p class="tagline">プライバシーポリシー</p>
+      </div>
+    </header>
+
+    <main class="container">
+      <div class="section">
+        <p class="effective-date">最終更新日: 2026年3月15日</p>
+
+        <div class="policy-section">
+          <h3>1. はじめに</h3>
+          <p>
+            CB Link（以下「本サービス」）は、保護者が子供のデバイスにおける
+            Chrome ブラウザおよび PWA
+            の利用時間を把握するためのツールです。本プライバシーポリシーでは、本サービスが収集・使用・保存するデータについて説明します。
+          </p>
+        </div>
+
+        <div class="policy-section">
+          <h3>2. 収集するデータ</h3>
+          <p>本サービスの Chrome 拡張機能は、以下のデータのみを収集します:</p>
+          <ul>
+            <li>
+              <strong>デバイスID</strong> —
+              拡張機能が自動生成するランダムな識別子（UUID）。個人を特定する情報ではありません
+            </li>
+            <li>
+              <strong>アプリ名</strong> — 利用中の PWA のドメイン名（例:
+              youtube.com）、または Chrome
+              ブラウザの利用を示す固定文字列「chrome」
+            </li>
+            <li><strong>利用時間</strong> — アプリごとの利用秒数</li>
+            <li><strong>タイムスタンプ</strong> — データ送信時の日時</li>
+          </ul>
+        </div>
+
+        <div class="policy-section">
+          <h3>3. 収集しないデータ</h3>
+          <p>本サービスは以下のデータを一切収集しません:</p>
+          <ul>
+            <li>
+              閲覧した URL
+              の全体（ドメイン名のみ使用し、パスやクエリパラメータは取得しません）
+            </li>
+            <li>ページのタイトルや内容</li>
+            <li>フォームへの入力内容</li>
+            <li>パスワードやログイン情報</li>
+            <li>Cookie やブラウザ履歴</li>
+            <li>メールアドレスや氏名などの個人を特定する情報（拡張機能側）</li>
+            <li>位置情報</li>
+          </ul>
+        </div>
+
+        <div class="policy-section">
+          <h3>4. データの使用目的</h3>
+          <p>収集したデータは、以下の目的にのみ使用します:</p>
+          <ul>
+            <li>保護者向けモバイルアプリでの利用時間集計・表示</li>
+            <li>アプリごとの利用統計の生成</li>
+          </ul>
+        </div>
+
+        <div class="policy-section">
+          <h3>5. データの保存</h3>
+          <ul>
+            <li>
+              データは Google Firebase（Google Cloud Platform）上に保存されます
+            </li>
+            <li>
+              利用ログ（usageLogs）は
+              <strong>30日間</strong> 保存された後、自動的に削除されます
+            </li>
+            <li>
+              日次集計データ（dailyLogs）は
+              <strong>84日間</strong> 保存された後、自動的に削除されます
+            </li>
+            <li>データの保存・転送には HTTPS 暗号化通信を使用します</li>
+          </ul>
+        </div>
+
+        <div class="policy-section">
+          <h3>6. データの共有・第三者提供</h3>
+          <p>
+            収集したデータを第三者に販売・提供・共有することはありません。データは、ペアリング済みの保護者アカウントからのみ閲覧可能です。
+          </p>
+        </div>
+
+        <div class="policy-section">
+          <h3>7. 使用する外部サービス</h3>
+          <ul>
+            <li>
+              <strong>Google Firebase</strong> —
+              データの保存・処理・ユーザー認証に使用します。Google
+              のプライバシーポリシーは
+              <a
+                href="https://policies.google.com/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                >こちら</a
+              >
+              をご確認ください
+            </li>
+          </ul>
+        </div>
+
+        <div class="policy-section">
+          <h3>8. 保護者アプリの認証</h3>
+          <p>
+            保護者アプリでは Google
+            アカウントによるシングルサインオン（SSO）を使用します。認証には
+            Firebase Authentication
+            を使用し、メールアドレスと表示名のみを保存します。
+          </p>
+        </div>
+
+        <div class="policy-section">
+          <h3>9. データの削除</h3>
+          <p>
+            拡張機能をアンインストールすると、デバイス上のローカルデータ（chrome.storage）は自動的に削除されます。サーバー上のデータは、上記の保存期間（30日
+            / 84日）の経過後に自動削除されます。
+          </p>
+        </div>
+
+        <div class="policy-section">
+          <h3>10. お子様のプライバシー</h3>
+          <p>
+            本サービスは、保護者が子供のデバイス利用状況を把握する目的で設計されています。子供のブラウザ利用に関して収集するのは、アプリ種別と利用時間のみであり、閲覧内容やコミュニケーションの内容は一切収集しません。
+          </p>
+        </div>
+
+        <div class="policy-section">
+          <h3>11. ポリシーの変更</h3>
+          <p>
+            本プライバシーポリシーは、必要に応じて更新される場合があります。重要な変更がある場合は、本ページにて告知します。
+          </p>
+        </div>
+
+        <div class="policy-section">
+          <h3>12. お問い合わせ</h3>
+          <p>
+            本プライバシーポリシーに関するご質問は、<a
+              href="https://github.com/y-plusknasy/cb-monitor-extension/issues"
+              target="_blank"
+              rel="noopener noreferrer"
+              >GitHub Issues</a
+            >
+            にてお問い合わせください。
+          </p>
+        </div>
+      </div>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container">
+        <p>
+          <a href="index.html">ホームに戻る</a> ·
+          <a
+            href="https://github.com/y-plusknasy/cb-monitor-extension"
+            target="_blank"
+            rel="noopener noreferrer"
+            >GitHub</a
+          >
+        </p>
+        <p style="margin-top: 8px">© 2026 CB Link</p>
+      </div>
+    </footer>
+  </body>
+</html>

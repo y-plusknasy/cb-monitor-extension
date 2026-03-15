@@ -1,0 +1,163 @@
+/* ── CB Link Documentation Site ── */
+:root {
+  --color-primary: #1a73e8;
+  --color-primary-dark: #1557b0;
+  --color-bg: #f9fafb;
+  --color-surface: #ffffff;
+  --color-text: #1f2937;
+  --color-text-secondary: #6b7280;
+  --color-border: #e5e7eb;
+  --radius: 12px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+
+.container {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* ── Header ── */
+.site-header {
+  background: var(--color-primary);
+  color: #fff;
+  padding: 48px 0 40px;
+  text-align: center;
+}
+.site-header h1 {
+  font-size: 36px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+.site-header .tagline {
+  font-size: 16px;
+  opacity: 0.9;
+}
+
+/* ── Sections ── */
+.section {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 28px 32px;
+  margin: 24px 0;
+}
+.section h2 {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--color-primary);
+  margin-bottom: 16px;
+}
+.section ul {
+  padding-left: 20px;
+}
+.section li {
+  margin-bottom: 8px;
+}
+
+/* ── Download Card ── */
+.download-card {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 24px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: var(--radius);
+}
+.download-card img {
+  flex-shrink: 0;
+}
+.download-info h3 {
+  font-size: 18px;
+  margin-bottom: 8px;
+}
+.download-info p {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  margin-bottom: 12px;
+}
+.download-btn {
+  display: inline-block;
+  padding: 10px 24px;
+  background: var(--color-primary);
+  color: #fff;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 14px;
+  transition: background 0.2s;
+}
+.download-btn:hover {
+  background: var(--color-primary-dark);
+}
+
+/* ── Footer ── */
+.site-footer {
+  text-align: center;
+  padding: 32px 0;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+.site-footer a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+.site-footer a:hover {
+  text-decoration: underline;
+}
+
+/* ── Privacy Policy specific ── */
+.policy-section {
+  margin-bottom: 24px;
+}
+.policy-section h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--color-text);
+}
+.policy-section p,
+.policy-section ul {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+.policy-section ul {
+  padding-left: 20px;
+}
+.policy-section li {
+  margin-bottom: 4px;
+}
+
+.effective-date {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin-bottom: 24px;
+}
+
+/* ── Responsive ── */
+@media (max-width: 600px) {
+  .download-card {
+    flex-direction: column;
+    text-align: center;
+  }
+  .site-header h1 {
+    font-size: 28px;
+  }
+}

@@ -5,6 +5,10 @@
  * @see docs/adr/ADR-001-daily-usage-buffer-design.md
  */
 
+/** 本番 API エンドポイント URL */
+export const DEFAULT_API_ENDPOINT =
+  "https://asia-northeast1-cb-monitor-extension.cloudfunctions.net";
+
 /** chrome.storage のキー: デバイスID */
 export const STORAGE_KEY_DEVICE_ID = "deviceId";
 

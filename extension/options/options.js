@@ -416,5 +416,7 @@ repairingCancelBtn.addEventListener("click", (e) => {
 // 初回読み込み
 // ---------------------------------------------------------------------------
 
+// ===== DEV ONLY: 開発環境エミュレーター接続用 START =====
 loadSettings();
+// ===== DEV ONLY: 開発環境エミュレーター接続用 END =====
 loadPairingStatus();

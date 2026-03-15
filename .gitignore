@@ -3,6 +3,7 @@ node_modules/
 
 # Build output
 functions/dist/
+build/
 
 # Firebase
 firebase-debug.log
@@ -27,3 +28,6 @@ imgs/
 
 # Design assets (shared via external means, not tracked in git)
 design-assets/
+
+# secrets
+.secrets/

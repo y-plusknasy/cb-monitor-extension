@@ -145,6 +145,31 @@
         padding: 8px 0;
       }
 
+      /* ── 保護者アプリ ── */
+      .app-download-section {
+        padding: 10px 16px;
+        background: #fff;
+        border-bottom: 1px solid #e5e7eb;
+      }
+      .download-label {
+        font-size: 11px;
+        color: #6b7280;
+        margin-bottom: 6px;
+      }
+      .download-content {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .download-link {
+        font-size: 12px;
+        color: #1a73e8;
+        text-decoration: none;
+      }
+      .download-link:hover {
+        text-decoration: underline;
+      }
+
       /* ── フッター ── */
       .footer {
         display: flex;
@@ -196,6 +221,26 @@
       <div class="apps-header">アプリ別</div>
       <div id="apps-list">
         <div class="no-data">データなし</div>
+      </div>
+    </div>
+
+    <!-- 保護者アプリ -->
+    <div class="app-download-section">
+      <div class="download-label">保護者アプリ</div>
+      <div class="download-content">
+        <img
+          src="../icons/qr-apk.png"
+          alt="APK ダウンロード QR"
+          width="56"
+          height="56"
+        />
+        <a
+          href="https://github.com/y-plusknasy/cb-monitor-extension/releases/latest/download/cb-link.apk"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="download-link"
+          >ダウンロード ↗</a
+        >
       </div>
     </div>
 
