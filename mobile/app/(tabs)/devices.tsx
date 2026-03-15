@@ -19,6 +19,7 @@ import { DeviceCard } from "../../components/DeviceCard";
 import { OtpDisplay } from "../../components/OtpDisplay";
 import { LoadingScreen } from "../../components/LoadingScreen";
 import { API_BASE_URL, OTP_EXPIRY_SECONDS } from "../../lib/constants";
+import { useTheme } from "../../contexts/ThemeContext";
 
 /** OTP 発行状態 */
 interface OtpState {
@@ -27,6 +28,7 @@ interface OtpState {
 }
 
 export default function DevicesScreen(): React.JSX.Element {
+  const { colors } = useTheme();
   const { user } = useAuth();
   const { devices, loading } = useDevices(user?.uid);
   const [otpState, setOtpState] = useState<OtpState | null>(null);
@@ -87,15 +89,23 @@ export default function DevicesScreen(): React.JSX.Element {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
       <FlatList
         data={devices}
         keyExtractor={(item) => item.deviceId}
         ListHeaderComponent={
           <View>
             {/* OTP 発行セクション */}
-            <View style={styles.addDeviceSection}>
-              <Text style={styles.sectionTitle}>デバイスを追加</Text>
+            <View
+              style={[styles.addDeviceCard, { backgroundColor: colors.card }]}
+            >
+              <Text
+                style={[styles.sectionTitle, { color: colors.textSecondary }]}
+              >
+                デバイスを追加
+              </Text>
               {otpState ? (
                 <OtpDisplay
                   otp={otpState.otp}
@@ -106,7 +116,8 @@ export default function DevicesScreen(): React.JSX.Element {
                 <TouchableOpacity
                   style={[
                     styles.addButton,
-                    generating && styles.addButtonDisabled,
+                    { backgroundColor: colors.primary },
+                    generating && { backgroundColor: colors.primaryDisabled },
                   ]}
                   onPress={handleGenerateOtp}
                   disabled={generating}
@@ -117,14 +128,16 @@ export default function DevicesScreen(): React.JSX.Element {
                   </Text>
                 </TouchableOpacity>
               )}
-            </View>
 
-            {/* デバイス一覧ヘッダー */}
-            {devices.length > 0 && (
-              <Text style={styles.listTitle}>
-                登録済みデバイス ({devices.length}台)
-              </Text>
-            )}
+              {/* デバイス一覧ヘッダー */}
+              {devices.length > 0 && (
+                <Text
+                  style={[styles.listTitle, { color: colors.textSecondary }]}
+                >
+                  登録済みデバイス ({devices.length}台)
+                </Text>
+              )}
+            </View>
           </View>
         }
         renderItem={({ item }) => (
@@ -138,8 +151,10 @@ export default function DevicesScreen(): React.JSX.Element {
         )}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>登録済みのデバイスはありません</Text>
-            <Text style={styles.emptyHint}>
+            <Text style={[styles.emptyText, { color: colors.textTertiary }]}>
+              登録済みのデバイスはありません
+            </Text>
+            <Text style={[styles.emptyHint, { color: colors.textHint }]}>
               上のボタンから OTP を発行し、子供のデバイスの{"\n"}
               Chrome 拡張機能で入力してください
             </Text>
@@ -154,29 +169,25 @@ export default function DevicesScreen(): React.JSX.Element {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F5F5F5",
   },
   listContent: {
     paddingBottom: 24,
   },
-  addDeviceSection: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
+  addDeviceCard: {
+    borderRadius: 28,
+    padding: 24,
+    marginHorizontal: 16,
+    marginTop: 16,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#555",
-    marginBottom: 12,
+    marginBottom: 16,
   },
   addButton: {
-    backgroundColor: "#4285F4",
-    borderRadius: 8,
-    paddingVertical: 14,
+    borderRadius: 28,
+    paddingVertical: 16,
     alignItems: "center",
-  },
-  addButtonDisabled: {
-    backgroundColor: "#A0C4FF",
   },
   addButtonText: {
     color: "#FFFFFF",
@@ -186,9 +197,7 @@ const styles = StyleSheet.create({
   listTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#555",
     marginTop: 24,
-    marginHorizontal: 16,
   },
   emptyContainer: {
     alignItems: "center",
@@ -197,13 +206,11 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: "#888",
     textAlign: "center",
     marginBottom: 8,
   },
   emptyHint: {
     fontSize: 13,
-    color: "#AAA",
     textAlign: "center",
     lineHeight: 20,
   },

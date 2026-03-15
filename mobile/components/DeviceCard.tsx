@@ -8,6 +8,7 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { formatDate } from "../lib/formatters";
+import { useTheme } from "../contexts/ThemeContext";
 
 /** Props */
 interface DeviceCardProps {
@@ -31,12 +32,20 @@ export function DeviceCard({
   syncAvailable,
   lastSeenAt,
 }: DeviceCardProps): React.JSX.Element {
+  const { colors } = useTheme();
   const showSyncWarning = syncAvailable === false;
 
   return (
-    <View style={styles.card}>
+    <View
+      style={[
+        styles.card,
+        { backgroundColor: colors.card, borderLeftColor: colors.deviceBorder },
+      ]}
+    >
       <View style={styles.header}>
-        <Text style={styles.deviceName}>{deviceName}</Text>
+        <Text style={[styles.deviceName, { color: colors.textPrimary }]}>
+          {deviceName}
+        </Text>
         {showSyncWarning && (
           <Text
             style={styles.warningIcon}
@@ -46,15 +55,24 @@ export function DeviceCard({
           </Text>
         )}
       </View>
-      <Text style={styles.deviceIdText}>{deviceId}</Text>
-      <Text style={styles.registeredAt}>
+      <Text style={[styles.registeredAt, { color: colors.textSecondary }]}>
         登録日: {formatDate(registeredAt)}
       </Text>
       {lastSeenAt && (
-        <Text style={styles.lastSeen}>最終通信: {formatDate(lastSeenAt)}</Text>
+        <Text style={[styles.lastSeen, { color: colors.textSecondary }]}>
+          最終通信: {formatDate(lastSeenAt)}
+        </Text>
       )}
       {showSyncWarning && (
-        <Text style={styles.warningText}>
+        <Text
+          style={[
+            styles.warningText,
+            {
+              color: colors.syncWarningText,
+              backgroundColor: colors.syncWarningBg,
+            },
+          ]}
+        >
           バックアップ不可: キャッシュ削除で監視が解除される可能性があります
         </Text>
       )}
@@ -64,57 +82,39 @@ export function DeviceCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 28,
+    padding: 24,
     marginHorizontal: 16,
     marginTop: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-    elevation: 2,
     borderLeftWidth: 4,
-    borderLeftColor: "#4285F4",
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 4,
+    marginBottom: 8,
   },
   deviceName: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#333",
     flex: 1,
-  },
-  deviceIdText: {
-    fontSize: 11,
-    color: "#9CA3AF",
-    marginBottom: 4,
-    fontFamily: "monospace",
   },
   warningIcon: {
     fontSize: 18,
     marginLeft: 8,
   },
   registeredAt: {
-    fontSize: 13,
-    color: "#888",
+    fontSize: 14,
   },
   lastSeen: {
-    fontSize: 13,
-    color: "#888",
+    fontSize: 14,
     marginTop: 2,
   },
   warningText: {
     fontSize: 12,
-    color: "#E65100",
-    marginTop: 6,
-    backgroundColor: "#FFF3E0",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
     overflow: "hidden",
   },
 });

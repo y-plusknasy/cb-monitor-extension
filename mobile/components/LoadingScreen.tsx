@@ -5,12 +5,15 @@
  */
 import React from "react";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
+import { useTheme } from "../contexts/ThemeContext";
 
 /** ローディング画面 */
 export function LoadingScreen(): React.JSX.Element {
+  const { colors } = useTheme();
+
   return (
-    <View style={styles.container}>
-      <ActivityIndicator size="large" color="#4285F4" />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <ActivityIndicator size="large" color={colors.primary} />
     </View>
   );
 }
@@ -20,6 +23,5 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#ffffff",
   },
 });

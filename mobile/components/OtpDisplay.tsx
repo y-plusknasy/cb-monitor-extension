@@ -6,6 +6,7 @@
  */
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { View, Text, StyleSheet } from "react-native";
+import { useTheme } from "../contexts/ThemeContext";
 
 /** Props */
 interface OtpDisplayProps {
@@ -28,6 +29,7 @@ export function OtpDisplay({
   expiresIn,
   onExpired,
 }: OtpDisplayProps): React.JSX.Element {
+  const { colors } = useTheme();
   const [remaining, setRemaining] = useState(expiresIn);
   const onExpiredRef = useRef(onExpired);
   onExpiredRef.current = onExpired;
@@ -65,13 +67,21 @@ export function OtpDisplay({
   const isExpiring = remaining <= 60;
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.label}>OTP コード</Text>
-      <Text style={styles.otpCode}>{otp}</Text>
-      <Text style={[styles.timer, isExpiring && styles.timerExpiring]}>
+    <View style={[styles.container, { backgroundColor: colors.cardOrange }]}>
+      <Text style={[styles.label, { color: colors.textSecondary }]}>
+        OTP コード
+      </Text>
+      <Text style={[styles.otpCode, { color: colors.otpCode }]}>{otp}</Text>
+      <Text
+        style={[
+          styles.timer,
+          { color: colors.textSecondary },
+          isExpiring && { color: colors.timerExpiring, fontWeight: "600" },
+        ]}
+      >
         残り {formatRemaining(remaining)}
       </Text>
-      <Text style={styles.hint}>
+      <Text style={[styles.hint, { color: colors.textTertiary }]}>
         このコードを子供のデバイスの拡張機能設定画面で入力してください
       </Text>
     </View>
@@ -80,37 +90,28 @@ export function OtpDisplay({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#FFF3E0",
-    borderRadius: 12,
-    padding: 20,
-    marginHorizontal: 16,
-    marginTop: 16,
+    borderRadius: 28,
+    padding: 24,
+    marginTop: 12,
     alignItems: "center",
   },
   label: {
     fontSize: 14,
-    color: "#666",
-    marginBottom: 8,
+    marginBottom: 12,
   },
   otpCode: {
-    fontSize: 40,
+    fontSize: 48,
     fontWeight: "bold",
-    color: "#E65100",
     letterSpacing: 8,
-    marginBottom: 8,
+    marginBottom: 12,
   },
   timer: {
     fontSize: 16,
-    color: "#888",
-    marginBottom: 8,
-  },
-  timerExpiring: {
-    color: "#D32F2F",
-    fontWeight: "600",
+    marginBottom: 12,
   },
   hint: {
-    fontSize: 12,
-    color: "#999",
+    fontSize: 13,
     textAlign: "center",
+    lineHeight: 20,
   },
 });

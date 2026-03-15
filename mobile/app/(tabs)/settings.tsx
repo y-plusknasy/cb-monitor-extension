@@ -1,7 +1,7 @@
 /**
  * 設定画面
  *
- * アカウント情報の表示とログアウト機能を提供する。
+ * アカウント情報の表示、テーマ切り替え、ログアウト機能を提供する。
  */
 import React from "react";
 import {
@@ -15,18 +15,17 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useAuth } from "../../hooks/useAuth";
+import { useTheme } from "../../contexts/ThemeContext";
 
 export default function SettingsScreen(): React.JSX.Element {
   const { user, signOut } = useAuth();
   const router = useRouter();
+  const { theme, colors, toggleTheme } = useTheme();
 
   /** サインアウト実行 */
   const performSignOut = async () => {
     try {
       await signOut();
-      // auth guard（_layout.tsx）がリダイレクトを担当するが、
-      // Web では onAuthStateChanged の反映にラグがある場合があるため、
-      // 明示的にログイン画面へ遷移する
       router.replace("/(auth)/login");
     } catch (error) {
       console.error("[SettingsScreen] sign out failed:", error);
@@ -36,8 +35,6 @@ export default function SettingsScreen(): React.JSX.Element {
   /** ログアウト確認ダイアログ */
   const handleSignOut = () => {
     if (Platform.OS === "web") {
-      // react-native-web の Alert.alert はコールバック呼び出しが不安定なため、
-      // Web では window.confirm を使用する
       if (window.confirm("ログアウトしますか？")) {
         performSignOut();
       }
@@ -54,22 +51,62 @@ export default function SettingsScreen(): React.JSX.Element {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
       <View style={styles.content}>
+        {/* テーマ設定セクション */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+            表示設定
+          </Text>
+          <View style={[styles.card, { backgroundColor: colors.card }]}>
+            <TouchableOpacity
+              style={styles.themeRow}
+              onPress={toggleTheme}
+              activeOpacity={0.7}
+            >
+              <View style={styles.themeLabel}>
+                <Text style={styles.themeIcon}>
+                  {theme === "dark" ? "🌙" : "☀️"}
+                </Text>
+                <Text style={[styles.infoLabel, { color: colors.textPrimary }]}>
+                  テーマ
+                </Text>
+              </View>
+              <Text
+                style={[styles.themeValue, { color: colors.textSecondary }]}
+              >
+                {theme === "dark" ? "ダーク" : "ライト"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* アカウント情報セクション */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>アカウント情報</Text>
-          <View style={styles.infoCard}>
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+            アカウント情報
+          </Text>
+          <View style={[styles.card, { backgroundColor: colors.card }]}>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>表示名</Text>
-              <Text style={styles.infoValue}>
+              <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>
+                表示名
+              </Text>
+              <Text style={[styles.infoValue, { color: colors.textPrimary }]}>
                 {user?.displayName ?? "未設定"}
               </Text>
             </View>
-            <View style={styles.divider} />
+            <View
+              style={[styles.divider, { backgroundColor: colors.border }]}
+            />
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>メールアドレス</Text>
-              <Text style={styles.infoValue}>{user?.email ?? "未設定"}</Text>
+              <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>
+                メールアドレス
+              </Text>
+              <Text style={[styles.infoValue, { color: colors.textPrimary }]}>
+                {user?.email ?? "未設定"}
+              </Text>
             </View>
           </View>
         </View>
@@ -77,17 +114,21 @@ export default function SettingsScreen(): React.JSX.Element {
         {/* ログアウトボタン */}
         <View style={styles.section}>
           <TouchableOpacity
-            style={styles.signOutButton}
+            style={[styles.signOutButton, { borderColor: colors.warning }]}
             onPress={handleSignOut}
             activeOpacity={0.7}
           >
-            <Text style={styles.signOutButtonText}>ログアウト</Text>
+            <Text style={[styles.signOutButtonText, { color: colors.warning }]}>
+              ログアウト
+            </Text>
           </TouchableOpacity>
         </View>
 
         {/* アプリ情報 */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Web Usage Tracker v1.0.0</Text>
+          <Text style={[styles.footerText, { color: colors.textHint }]}>
+            CB Link v1.0.0
+          </Text>
         </View>
       </View>
     </SafeAreaView>
@@ -97,7 +138,6 @@ export default function SettingsScreen(): React.JSX.Element {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F5F5F5",
   },
   content: {
     flex: 1,
@@ -105,55 +145,64 @@ const styles = StyleSheet.create({
   },
   section: {
     marginBottom: 24,
+    paddingHorizontal: 16,
   },
   sectionTitle: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#888",
-    textTransform: "uppercase",
-    marginHorizontal: 16,
     marginBottom: 8,
+    paddingHorizontal: 8,
   },
-  infoCard: {
-    backgroundColor: "#FFFFFF",
-    marginHorizontal: 16,
-    borderRadius: 12,
+  card: {
+    borderRadius: 28,
+    padding: 8,
     overflow: "hidden",
+  },
+  themeRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  themeLabel: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  themeIcon: {
+    fontSize: 20,
+  },
+  themeValue: {
+    fontSize: 15,
   },
   infoRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 16,
   },
   infoLabel: {
     fontSize: 15,
-    color: "#555",
   },
   infoValue: {
     fontSize: 15,
-    color: "#333",
     fontWeight: "500",
     maxWidth: "60%",
     textAlign: "right",
   },
   divider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: "#E0E0E0",
     marginHorizontal: 16,
   },
   signOutButton: {
-    backgroundColor: "#FFFFFF",
-    marginHorizontal: 16,
-    borderRadius: 12,
-    paddingVertical: 14,
+    borderRadius: 28,
+    paddingVertical: 16,
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#D32F2F",
+    borderWidth: 2,
   },
   signOutButtonText: {
-    color: "#D32F2F",
     fontSize: 16,
     fontWeight: "600",
   },
@@ -165,6 +214,5 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 12,
-    color: "#CCC",
   },
 });

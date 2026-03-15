@@ -25,6 +25,7 @@ import { UsageHistoryChart } from "../../components/UsageHistoryChart";
 import { AppUsageRow } from "../../components/AppUsageRow";
 import { LoadingScreen } from "../../components/LoadingScreen";
 import { formatDuration, floorToMinutes } from "../../lib/formatters";
+import { useTheme } from "../../contexts/ThemeContext";
 
 /** セクション内アプリ集計結果 */
 interface AppSummary {
@@ -99,6 +100,7 @@ function buildDeviceSections(
 }
 
 export default function HomeScreen(): React.JSX.Element {
+  const { colors } = useTheme();
   const { user } = useAuth();
   const {
     logs,
@@ -134,7 +136,9 @@ export default function HomeScreen(): React.JSX.Element {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
       <SectionList
         sections={sections}
         keyExtractor={(item, index) => `${item.appName}-${index}`}
@@ -152,8 +156,10 @@ export default function HomeScreen(): React.JSX.Element {
         }
         renderSectionHeader={({ section }) => (
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>{section.deviceName}</Text>
-            <Text style={styles.sectionDuration}>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+              {section.deviceName}
+            </Text>
+            <Text style={[styles.sectionDuration, { color: colors.primary }]}>
               {formatDuration(section.deviceTotalSeconds)}
             </Text>
           </View>
@@ -166,10 +172,10 @@ export default function HomeScreen(): React.JSX.Element {
         )}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>
+            <Text style={[styles.emptyText, { color: colors.textTertiary }]}>
               まだ今日の利用データがありません
             </Text>
-            <Text style={styles.emptyHint}>
+            <Text style={[styles.emptyHint, { color: colors.textHint }]}>
               Chrome
               拡張機能がインストールされたデバイスからデータが送信されると、ここに表示されます
             </Text>
@@ -185,7 +191,6 @@ export default function HomeScreen(): React.JSX.Element {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F5F5F5",
   },
   listContent: {
     paddingBottom: 24,
@@ -194,22 +199,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginTop: 20,
+    marginTop: 24,
     marginBottom: 8,
-    marginHorizontal: 16,
-    paddingBottom: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E0E0E0",
+    marginHorizontal: 20,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "600",
-    color: "#333",
   },
   sectionDuration: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "500",
-    color: "#4285F4",
   },
   emptyContainer: {
     alignItems: "center",
@@ -218,13 +218,11 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: "#888",
     textAlign: "center",
     marginBottom: 8,
   },
   emptyHint: {
     fontSize: 13,
-    color: "#AAA",
     textAlign: "center",
     lineHeight: 20,
   },

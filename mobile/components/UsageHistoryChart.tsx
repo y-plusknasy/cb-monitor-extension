@@ -24,7 +24,6 @@ import { db } from "../lib/firebase";
 import { COLLECTION_DAILY_LOGS, COLLECTION_USAGE_LOGS } from "../lib/constants";
 import {
   useUsageHistory,
-  type DailySummary,
   CHART_DAYS,
   MAX_PAGES,
 } from "../hooks/useUsageHistory";
@@ -35,6 +34,7 @@ import {
   getTodayDateString,
 } from "../lib/formatters";
 import { AppUsageRow } from "./AppUsageRow";
+import { useTheme } from "../contexts/ThemeContext";
 
 /** Props */
 interface UsageHistoryChartProps {
@@ -73,6 +73,7 @@ export function UsageHistoryChart({
   parentId,
   deviceNameMap,
 }: UsageHistoryChartProps): React.JSX.Element {
+  const { colors } = useTheme();
   const [page, setPage] = useState(0);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [breakdown, setBreakdown] = useState<DeviceBreakdown[] | null>(null);
@@ -97,7 +98,6 @@ export function UsageHistoryChart({
   const handleBarPress = useCallback(
     async (date: string) => {
       if (selectedDate === date) {
-        // 同じバーをタップ → 閉じる
         setSelectedDate(null);
         setBreakdown(null);
         return;
@@ -107,7 +107,6 @@ export function UsageHistoryChart({
       setBreakdownLoading(true);
 
       try {
-        // 当日は usageLogs、過去は dailyLogs から取得
         const today = getTodayDateString();
         const collectionName =
           date === today ? COLLECTION_USAGE_LOGS : COLLECTION_DAILY_LOGS;
@@ -119,7 +118,6 @@ export function UsageHistoryChart({
         );
         const snapshot = await getDocs(q);
 
-        // デバイス → アプリ別に集計
         const deviceMap = new Map<string, Map<string, number>>();
 
         for (const docSnap of snapshot.docs) {
@@ -180,14 +178,16 @@ export function UsageHistoryChart({
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="small" color="#4285F4" />
+        <ActivityIndicator size="small" color={colors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>利用履歴</Text>
+    <View style={[styles.container, { backgroundColor: colors.card }]}>
+      <Text style={[styles.title, { color: colors.textPrimary }]}>
+        利用履歴
+      </Text>
 
       {/* ページングコントロール */}
       <View style={styles.paging}>
@@ -199,14 +199,15 @@ export function UsageHistoryChart({
           <Text
             style={[
               styles.pageButtonText,
-              page >= MAX_PAGES - 1 && styles.pageButtonDisabled,
+              { color: colors.primary },
+              page >= MAX_PAGES - 1 && { color: colors.textHint },
             ]}
           >
             ◀ 前週
           </Text>
         </TouchableOpacity>
 
-        <Text style={styles.pageLabel}>
+        <Text style={[styles.pageLabel, { color: colors.textSecondary }]}>
           {dailySummaries.length > 0
             ? `${formatShortDate(dailySummaries[0].date)} 〜 ${formatShortDate(dailySummaries[dailySummaries.length - 1].date)}`
             : ""}
@@ -220,7 +221,8 @@ export function UsageHistoryChart({
           <Text
             style={[
               styles.pageButtonText,
-              page <= 0 && styles.pageButtonDisabled,
+              { color: colors.primary },
+              page <= 0 && { color: colors.textHint },
             ]}
           >
             次週 ▶
@@ -244,7 +246,7 @@ export function UsageHistoryChart({
               onPress={() => handleBarPress(day.date)}
               activeOpacity={0.7}
             >
-              <Text style={styles.barValue}>
+              <Text style={[styles.barValue, { color: colors.textTertiary }]}>
                 {day.totalSeconds > 0
                   ? formatDurationShort(day.totalSeconds)
                   : ""}
@@ -254,17 +256,28 @@ export function UsageHistoryChart({
                   styles.bar,
                   {
                     height: barHeight,
-                    backgroundColor: isSelected ? "#1A73E8" : "#4285F4",
+                    backgroundColor:
+                      day.totalSeconds > 0
+                        ? isSelected
+                          ? colors.chartBarSelected
+                          : colors.chartBar
+                        : colors.chartBarEmpty,
                   },
-                  isSelected && styles.barSelected,
                 ]}
               />
               <Text
-                style={[styles.barLabel, isSelected && styles.barLabelSelected]}
+                style={[
+                  styles.barLabel,
+                  { color: colors.textSecondary },
+                  isSelected && {
+                    color: colors.primary,
+                    fontWeight: "600",
+                  },
+                ]}
               >
                 {formatShortDate(day.date).split("(")[0]}
               </Text>
-              <Text style={styles.barDow}>
+              <Text style={[styles.barDow, { color: colors.textTertiary }]}>
                 {formatShortDate(day.date).match(/\((.)\)/)?.[1] ?? ""}
               </Text>
             </TouchableOpacity>
@@ -274,23 +287,29 @@ export function UsageHistoryChart({
 
       {/* 選択日の内訳 */}
       {selectedDate && (
-        <View style={styles.breakdownContainer}>
-          <Text style={styles.breakdownTitle}>
+        <View
+          style={[styles.breakdownContainer, { borderTopColor: colors.border }]}
+        >
+          <Text style={[styles.breakdownTitle, { color: colors.textPrimary }]}>
             {formatShortDate(selectedDate)} の内訳
           </Text>
 
           {breakdownLoading ? (
             <ActivityIndicator
               size="small"
-              color="#4285F4"
+              color={colors.primary}
               style={styles.breakdownLoading}
             />
           ) : breakdown && breakdown.length > 0 ? (
             breakdown.map((device) => (
               <View key={device.deviceId} style={styles.deviceSection}>
                 <View style={styles.deviceHeader}>
-                  <Text style={styles.deviceName}>{device.deviceName}</Text>
-                  <Text style={styles.deviceTotal}>
+                  <Text
+                    style={[styles.deviceName, { color: colors.textSecondary }]}
+                  >
+                    {device.deviceName}
+                  </Text>
+                  <Text style={[styles.deviceTotal, { color: colors.primary }]}>
                     {formatDuration(device.totalSeconds)}
                   </Text>
                 </View>
@@ -304,7 +323,9 @@ export function UsageHistoryChart({
               </View>
             ))
           ) : (
-            <Text style={styles.noData}>この日のデータはありません</Text>
+            <Text style={[styles.noData, { color: colors.textHint }]}>
+              この日のデータはありません
+            </Text>
           )}
         </View>
       )}
@@ -314,25 +335,18 @@ export function UsageHistoryChart({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
+    borderRadius: 28,
     marginHorizontal: 16,
     marginTop: 16,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-    elevation: 2,
+    padding: 20,
   },
   loadingContainer: {
     padding: 32,
     alignItems: "center",
   },
   title: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "600",
-    color: "#333",
     marginBottom: 12,
   },
   paging: {
@@ -347,15 +361,10 @@ const styles = StyleSheet.create({
   },
   pageButtonText: {
     fontSize: 13,
-    color: "#4285F4",
     fontWeight: "500",
-  },
-  pageButtonDisabled: {
-    color: "#CCC",
   },
   pageLabel: {
     fontSize: 12,
-    color: "#666",
   },
   chartContainer: {
     flexDirection: "row",
@@ -371,45 +380,29 @@ const styles = StyleSheet.create({
   },
   barValue: {
     fontSize: 9,
-    color: "#888",
     marginBottom: 4,
   },
   bar: {
     width: 28,
-    borderRadius: 4,
+    borderRadius: 8,
     minHeight: 2,
-  },
-  barSelected: {
-    shadowColor: "#1A73E8",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
   },
   barLabel: {
     fontSize: 11,
-    color: "#666",
     marginTop: 6,
-  },
-  barLabelSelected: {
-    color: "#1A73E8",
-    fontWeight: "600",
   },
   barDow: {
     fontSize: 10,
-    color: "#999",
     marginTop: 1,
   },
   breakdownContainer: {
     marginTop: 16,
     borderTopWidth: 1,
-    borderTopColor: "#E0E0E0",
     paddingTop: 12,
   },
   breakdownTitle: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#333",
     marginBottom: 8,
   },
   breakdownLoading: {
@@ -428,16 +421,13 @@ const styles = StyleSheet.create({
   deviceName: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#555",
   },
   deviceTotal: {
     fontSize: 13,
     fontWeight: "500",
-    color: "#4285F4",
   },
   noData: {
     fontSize: 13,
-    color: "#AAA",
     textAlign: "center",
     paddingVertical: 16,
   },

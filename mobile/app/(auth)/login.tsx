@@ -14,22 +14,28 @@ import {
   SafeAreaView,
 } from "react-native";
 import { useAuth } from "../../hooks/useAuth";
+import { useTheme } from "../../contexts/ThemeContext";
 
 export default function LoginScreen(): React.JSX.Element {
   const { signInWithGoogle, signInWithEmail, isEmulator } = useAuth();
+  const { colors } = useTheme();
   const [email, setEmail] = useState("test@example.com");
   const [password, setPassword] = useState("password123");
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
       <View style={styles.content}>
-        <Text style={styles.title}>Web Usage Tracker</Text>
-        <Text style={styles.subtitle}>
-          子供のブラウザ利用時間を{"\n"}リアルタイムに確認
+        <Text style={[styles.title, { color: colors.textPrimary }]}>
+          CB LINK
+        </Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+          Chromebook 利用時間の{"\n"}リアルタイムレポート
         </Text>
 
         <TouchableOpacity
-          style={styles.googleButton}
+          style={[styles.googleButton, { backgroundColor: colors.primary }]}
           onPress={signInWithGoogle}
           activeOpacity={0.8}
         >
@@ -37,25 +43,50 @@ export default function LoginScreen(): React.JSX.Element {
         </TouchableOpacity>
 
         {isEmulator && (
-          <View style={styles.emulatorSection}>
-            <Text style={styles.emulatorLabel}>Emulator テストログイン</Text>
+          <View
+            style={[styles.emulatorSection, { borderTopColor: colors.border }]}
+          >
+            <Text
+              style={[styles.emulatorLabel, { color: colors.textTertiary }]}
+            >
+              Emulator テストログイン
+            </Text>
             <TextInput
-              style={styles.input}
+              style={[
+                styles.input,
+                {
+                  backgroundColor: colors.card,
+                  borderColor: colors.border,
+                  color: colors.textPrimary,
+                },
+              ]}
               value={email}
               onChangeText={setEmail}
               placeholder="メールアドレス"
+              placeholderTextColor={colors.textTertiary}
               autoCapitalize="none"
               keyboardType="email-address"
             />
             <TextInput
-              style={styles.input}
+              style={[
+                styles.input,
+                {
+                  backgroundColor: colors.card,
+                  borderColor: colors.border,
+                  color: colors.textPrimary,
+                },
+              ]}
               value={password}
               onChangeText={setPassword}
               placeholder="パスワード"
+              placeholderTextColor={colors.textTertiary}
               secureTextEntry
             />
             <TouchableOpacity
-              style={styles.emulatorButton}
+              style={[
+                styles.emulatorButton,
+                { backgroundColor: colors.primaryPressed },
+              ]}
               onPress={() => signInWithEmail(email, password)}
               activeOpacity={0.8}
             >
@@ -73,7 +104,6 @@ export default function LoginScreen(): React.JSX.Element {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
   },
   content: {
     flex: 1,
@@ -82,30 +112,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   title: {
-    fontSize: 28,
+    fontSize: 36,
     fontWeight: "bold",
-    color: "#333",
-    marginBottom: 12,
+    marginBottom: 16,
   },
   subtitle: {
     fontSize: 16,
-    color: "#666",
     textAlign: "center",
     marginBottom: 48,
     lineHeight: 24,
   },
   googleButton: {
-    backgroundColor: "#4285F4",
-    borderRadius: 8,
-    paddingVertical: 14,
+    borderRadius: 28,
+    paddingVertical: 16,
     paddingHorizontal: 32,
     width: "100%",
     alignItems: "center",
-    shadowColor: "#4285F4",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
   },
   googleButtonText: {
     color: "#FFFFFF",
@@ -117,28 +139,23 @@ const styles = StyleSheet.create({
     width: "100%",
     paddingTop: 24,
     borderTopWidth: 1,
-    borderTopColor: "#E0E0E0",
   },
   emulatorLabel: {
     fontSize: 13,
-    color: "#999",
     textAlign: "center",
     marginBottom: 12,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#DDD",
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    borderRadius: 28,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
     fontSize: 14,
     marginBottom: 10,
-    backgroundColor: "#FAFAFA",
   },
   emulatorButton: {
-    backgroundColor: "#757575",
-    borderRadius: 8,
-    paddingVertical: 12,
+    borderRadius: 28,
+    paddingVertical: 14,
     alignItems: "center",
     marginTop: 4,
   },

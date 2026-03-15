@@ -2,10 +2,12 @@
  * 利用時間サマリーカードコンポーネント
  *
  * 今日の合計利用時間を大きく表示するカード。
+ * Family Link 風 Material Design。
  */
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { formatDuration } from "../lib/formatters";
+import { useTheme } from "../contexts/ThemeContext";
 
 /** Props */
 interface UsageSummaryCardProps {
@@ -17,36 +19,34 @@ interface UsageSummaryCardProps {
 export function UsageSummaryCard({
   totalSeconds,
 }: UsageSummaryCardProps): React.JSX.Element {
+  const { colors } = useTheme();
+
   return (
-    <View style={styles.card}>
-      <Text style={styles.label}>今日の利用時間</Text>
-      <Text style={styles.duration}>{formatDuration(totalSeconds)}</Text>
+    <View style={[styles.card, { backgroundColor: colors.cardGray }]}>
+      <Text style={[styles.label, { color: colors.textSecondary }]}>
+        今日の利用時間合計
+      </Text>
+      <Text style={[styles.duration, { color: colors.accent }]}>
+        {formatDuration(totalSeconds)}
+      </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#E8F5E9",
-    borderRadius: 16,
+    borderRadius: 28,
     padding: 24,
     marginHorizontal: 16,
     marginTop: 16,
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
   label: {
     fontSize: 14,
-    color: "#666",
     marginBottom: 8,
   },
   duration: {
-    fontSize: 36,
+    fontSize: 48,
     fontWeight: "bold",
-    color: "#2E7D32",
   },
 });

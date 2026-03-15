@@ -13,6 +13,7 @@ import {
   APP_NAME_CHROME_BROWSER,
   DEFAULT_APP_DISPLAY_NAMES,
 } from "../lib/constants";
+import { useTheme } from "../contexts/ThemeContext";
 
 /** Props */
 interface AppUsageRowProps {
@@ -63,6 +64,8 @@ export function AppUsageRow({
   displayName,
   iconUrl,
 }: AppUsageRowProps): React.JSX.Element | null {
+  const { colors } = useTheme();
+
   if (totalSeconds < MIN_DISPLAY_SECONDS) {
     return null;
   }
@@ -71,22 +74,32 @@ export function AppUsageRow({
   const resolvedIcon = resolveIconUrl(appName, iconUrl);
 
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, { backgroundColor: colors.card }]}>
       <View style={styles.iconContainer}>
         {resolvedIcon ? (
           <Image source={{ uri: resolvedIcon }} style={styles.icon} />
         ) : (
-          <View style={styles.iconPlaceholder}>
+          <View
+            style={[
+              styles.iconPlaceholder,
+              { backgroundColor: colors.cardGray },
+            ]}
+          >
             <Text style={styles.iconText}>
               {appName === APP_NAME_CHROME_BROWSER ? "🌐" : "❓"}
             </Text>
           </View>
         )}
       </View>
-      <Text style={styles.appName} numberOfLines={1}>
+      <Text
+        style={[styles.appName, { color: colors.textPrimary }]}
+        numberOfLines={1}
+      >
         {resolvedName}
       </Text>
-      <Text style={styles.duration}>{formatDuration(totalSeconds)}</Text>
+      <Text style={[styles.duration, { color: colors.textSecondary }]}>
+        {formatDuration(totalSeconds)}
+      </Text>
     </View>
   );
 }
@@ -95,43 +108,40 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#E0E0E0",
+    borderRadius: 24,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    marginHorizontal: 16,
+    marginBottom: 8,
   },
   iconContainer: {
-    width: 32,
-    height: 32,
-    marginRight: 12,
+    width: 28,
+    height: 28,
+    marginRight: 16,
     justifyContent: "center",
     alignItems: "center",
   },
   icon: {
-    width: 32,
-    height: 32,
+    width: 28,
+    height: 28,
     borderRadius: 4,
   },
   iconPlaceholder: {
-    width: 32,
-    height: 32,
+    width: 28,
+    height: 28,
     borderRadius: 4,
-    backgroundColor: "#F5F5F5",
     justifyContent: "center",
     alignItems: "center",
   },
   iconText: {
-    fontSize: 18,
+    fontSize: 16,
   },
   appName: {
     flex: 1,
-    fontSize: 16,
-    color: "#333",
+    fontSize: 15,
   },
   duration: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#555",
+    fontSize: 15,
     marginLeft: 8,
   },
 });

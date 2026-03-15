@@ -3,12 +3,14 @@
  *
  * アプリ全体のルートレイアウト。
  * 認証状態に応じて (auth) または (tabs) グループにリダイレクトする。
+ * ThemeProvider でテーマ管理を行う。
  */
 import React from "react";
 import { Slot, useRouter, useSegments } from "expo-router";
 import { useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { LoadingScreen } from "../components/LoadingScreen";
+import { ThemeProvider } from "../contexts/ThemeContext";
 
 /**
  * 認証ガード付きルートレイアウト。
@@ -17,7 +19,7 @@ import { LoadingScreen } from "../components/LoadingScreen";
  * - 未認証 + (tabs) セグメント → (auth)/login にリダイレクト
  * - 認証済み + (auth) セグメント → (tabs)/ にリダイレクト
  */
-export default function RootLayout(): React.JSX.Element {
+function RootLayoutInner(): React.JSX.Element {
   const { user, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
@@ -41,4 +43,12 @@ export default function RootLayout(): React.JSX.Element {
   }
 
   return <Slot />;
+}
+
+export default function RootLayout(): React.JSX.Element {
+  return (
+    <ThemeProvider>
+      <RootLayoutInner />
+    </ThemeProvider>
+  );
 }
