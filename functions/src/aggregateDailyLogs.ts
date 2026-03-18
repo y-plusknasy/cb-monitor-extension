@@ -16,65 +16,68 @@ import {
  * ドキュメントID: `{deviceId}_{appName}_{date}`
  * TTL: 作成日から 84 日後（expireAt フィールド）
  */
-export const aggregateDailyLogs = onSchedule("every day 15:00", async () => {
-  const db = getDb();
-  const yesterday = getYesterdayDateString();
+export const aggregateDailyLogs = onSchedule(
+  { schedule: "every day 15:00", region: "asia-northeast1" },
+  async () => {
+    const db = getDb();
+    const yesterday = getYesterdayDateString();
 
-  console.log(`[aggregateDailyLogs] 集計開始: date=${yesterday}`);
+    console.log(`[aggregateDailyLogs] 集計開始: date=${yesterday}`);
 
-  // 前日分の usageLogs を全件取得
-  const snapshot = await db
-    .collection(COLLECTION_USAGE_LOGS)
-    .where("date", "==", yesterday)
-    .get();
+    // 前日分の usageLogs を全件取得
+    const snapshot = await db
+      .collection(COLLECTION_USAGE_LOGS)
+      .where("date", "==", yesterday)
+      .get();
 
-  if (snapshot.empty) {
-    console.log("[aggregateDailyLogs] 集計対象なし");
-    return;
-  }
-
-  // deviceId × appName ごとに集計
-  const aggregated = aggregateUsageLogs(snapshot.docs);
-
-  // dailyLogs に書き込み（バッチ）
-  const BATCH_SIZE = 500;
-  const entries = Array.from(aggregated.values());
-  let written = 0;
-
-  for (let i = 0; i < entries.length; i += BATCH_SIZE) {
-    const batch = db.batch();
-    const chunk = entries.slice(i, i + BATCH_SIZE);
-
-    for (const entry of chunk) {
-      const docId = `${entry.deviceId}_${entry.appName}_${yesterday}`;
-      const expireAt = Timestamp.fromDate(
-        new Date(Date.now() + DAILY_LOGS_TTL_DAYS * 24 * 60 * 60 * 1000),
-      );
-
-      batch.set(
-        db.collection(COLLECTION_DAILY_LOGS).doc(docId),
-        {
-          parentIds: entry.parentIds,
-          deviceId: entry.deviceId,
-          appName: entry.appName,
-          date: yesterday,
-          totalSeconds: entry.totalSeconds,
-          totalMinutes: Math.floor(entry.totalSeconds / 60),
-          updatedAt: Timestamp.now(),
-          expireAt,
-        },
-        { merge: true },
-      );
+    if (snapshot.empty) {
+      console.log("[aggregateDailyLogs] 集計対象なし");
+      return;
     }
 
-    await batch.commit();
-    written += chunk.length;
-  }
+    // deviceId × appName ごとに集計
+    const aggregated = aggregateUsageLogs(snapshot.docs);
 
-  console.log(
-    `[aggregateDailyLogs] ${written} 件の dailyLogs を書き込み (date=${yesterday})`,
-  );
-});
+    // dailyLogs に書き込み（バッチ）
+    const BATCH_SIZE = 500;
+    const entries = Array.from(aggregated.values());
+    let written = 0;
+
+    for (let i = 0; i < entries.length; i += BATCH_SIZE) {
+      const batch = db.batch();
+      const chunk = entries.slice(i, i + BATCH_SIZE);
+
+      for (const entry of chunk) {
+        const docId = `${entry.deviceId}_${entry.appName}_${yesterday}`;
+        const expireAt = Timestamp.fromDate(
+          new Date(Date.now() + DAILY_LOGS_TTL_DAYS * 24 * 60 * 60 * 1000),
+        );
+
+        batch.set(
+          db.collection(COLLECTION_DAILY_LOGS).doc(docId),
+          {
+            parentIds: entry.parentIds,
+            deviceId: entry.deviceId,
+            appName: entry.appName,
+            date: yesterday,
+            totalSeconds: entry.totalSeconds,
+            totalMinutes: Math.floor(entry.totalSeconds / 60),
+            updatedAt: Timestamp.now(),
+            expireAt,
+          },
+          { merge: true },
+        );
+      }
+
+      await batch.commit();
+      written += chunk.length;
+    }
+
+    console.log(
+      `[aggregateDailyLogs] ${written} 件の dailyLogs を書き込み (date=${yesterday})`,
+    );
+  },
+);
 
 // ---------------------------------------------------------------------------
 // ヘルパー関数（テスト用にエクスポート）

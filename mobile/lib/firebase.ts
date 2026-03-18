@@ -8,12 +8,20 @@
  * Emulator 使用時は apiKey / appId 等はダミー値でも動作する。
  */
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
-import { getAuth, connectAuthEmulator, type Auth } from "firebase/auth";
+import {
+  getAuth,
+  initializeAuth,
+  connectAuthEmulator,
+  type Auth,
+  type Persistence,
+} from "firebase/auth";
 import {
   getFirestore,
   connectFirestoreEmulator,
   type Firestore,
 } from "firebase/firestore";
+import { Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 /**
  * Firebase 設定。
@@ -46,8 +54,26 @@ function getFirebaseApp(): FirebaseApp {
 /** Firebase App シングルトン */
 const app = getFirebaseApp();
 
-/** Firebase Auth インスタンス */
-export const auth: Auth = getAuth(app);
+/**
+ * Firebase Auth インスタンス
+ *
+ * Native (iOS/Android) では AsyncStorage を使ってセッションを永続化する。
+ * Web では getAuth のデフォルト永続化（IndexedDB）をそのまま使用する。
+ */
+function createAuth(firebaseApp: FirebaseApp): Auth {
+  if (Platform.OS === "web") {
+    return getAuth(firebaseApp);
+  }
+  // getReactNativePersistence は react-native condition でのみエクスポートされ、
+  // TypeScript の型定義には含まれない。Metro バンドラーでは正しくリゾルブされる。
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { getReactNativePersistence } = require("firebase/auth");
+  return initializeAuth(firebaseApp, {
+    persistence: getReactNativePersistence(AsyncStorage) as Persistence,
+  });
+}
+
+export const auth: Auth = createAuth(app);
 
 /** Firestore インスタンス */
 export const db: Firestore = getFirestore(app);

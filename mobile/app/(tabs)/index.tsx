@@ -10,9 +10,9 @@ import {
   Text,
   SectionList,
   StyleSheet,
-  SafeAreaView,
   RefreshControl,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../hooks/useAuth";
 import {
   useUsageLogs,

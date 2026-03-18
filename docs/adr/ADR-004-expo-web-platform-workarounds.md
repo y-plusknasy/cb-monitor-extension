@@ -45,11 +45,11 @@ S03 モバイルアプリは React Native (Expo) で構築し、DevContainer 内
 
 ### 適用箇所と対応内容
 
-| 問題                             | ファイル                         | 対応                                                                                                   |
-| -------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| COOP による SSO 失敗             | `mobile/hooks/useAuth.ts`        | Web: `signInWithPopup()` を使用。Native: `expo-auth-session` を維持                                    |
-| `Alert.alert` コールバック不発火 | `mobile/app/(tabs)/settings.tsx` | Web: `window.confirm()` を使用。Native: `Alert.alert()` を維持                                         |
-| signOut 後のリダイレクト遅延     | `mobile/app/(tabs)/settings.tsx` | `signOut()` 成功後に `router.replace("/(auth)/login")` を明示的に呼び出し（auth guard のバックアップ） |
+| 問題                             | ファイル                         | 対応                                                                                                                                      |
+| -------------------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| COOP による SSO 失敗             | `mobile/hooks/useAuth.ts`        | Web: `signInWithPopup()` を使用。Native: `expo-auth-session` を維持（後に ADR-010 で `@react-native-google-signin/google-signin` に変更） |
+| `Alert.alert` コールバック不発火 | `mobile/app/(tabs)/settings.tsx` | Web: `window.confirm()` を使用。Native: `Alert.alert()` を維持                                                                            |
+| signOut 後のリダイレクト遅延     | `mobile/app/(tabs)/settings.tsx` | `signOut()` 成功後に `router.replace("/(auth)/login")` を明示的に呼び出し（auth guard のバックアップ）                                    |
 
 ---
 

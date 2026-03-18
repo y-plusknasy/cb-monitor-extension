@@ -26,103 +26,111 @@ import {
  *
  * S04: レート制限（デバイス単位・分間ウィンドウ）と日付バリデーションを追加。
  */
-export const usageLogs = onRequest({ cors: true }, async (req, res) => {
-  // POST のみ許可
-  if (req.method !== "POST") {
-    res.status(405).json({ error: "method_not_allowed" });
-    return;
-  }
-
-  // リクエストボディのバリデーション
-  const result = usageLogSchema.safeParse(req.body);
-  if (!result.success) {
-    res.status(400).json({
-      error: "validation_error",
-      details: result.error.issues,
-    });
-    return;
-  }
-
-  const { deviceId, date, appName, totalSeconds, lastUpdated } = result.data;
-
-  const db = getDb();
-
-  // deviceId の登録検証: devices コレクションから parentIds を逆引き
-  const deviceDoc = await db.collection(COLLECTION_DEVICES).doc(deviceId).get();
-  if (!deviceDoc.exists) {
-    res.status(401).json({ error: "unknown_device" });
-    return;
-  }
-  const parentIds = deviceDoc.data()!.parentIds as string[];
-
-  // レート制限: デバイス単位の分間ウィンドウ
-  const deviceData = deviceDoc.data()!;
-  const now = Date.now();
-  const windowStart = deviceData.rateLimitWindowStart as Timestamp | undefined;
-  const requestCount = (deviceData.rateLimitRequestCount as number) ?? 0;
-
-  if (
-    windowStart &&
-    now - windowStart.toDate().getTime() < RATE_LIMIT_WINDOW_MS
-  ) {
-    // ウィンドウ内: カウントチェック
-    if (requestCount >= RATE_LIMIT_MAX_REQUESTS) {
-      res.status(429).json({ error: "rate_limit_exceeded" });
+export const usageLogs = onRequest(
+  { cors: true, region: "asia-northeast1" },
+  async (req, res) => {
+    // POST のみ許可
+    if (req.method !== "POST") {
+      res.status(405).json({ error: "method_not_allowed" });
       return;
     }
-  }
 
-  // 日付バリデーション: 未来日や過去 MAX_DATE_AGE_DAYS 日以前を拒否
-  const dateError = validateDate(date);
-  if (dateError) {
-    res.status(400).json({ error: dateError });
-    return;
-  }
+    // リクエストボディのバリデーション
+    const result = usageLogSchema.safeParse(req.body);
+    if (!result.success) {
+      res.status(400).json({
+        error: "validation_error",
+        details: result.error.issues,
+      });
+      return;
+    }
 
-  // デバイスの最終通信日時 + レート制限カウンターを更新
-  const isNewWindow =
-    !windowStart ||
-    now - windowStart.toDate().getTime() >= RATE_LIMIT_WINDOW_MS;
+    const { deviceId, date, appName, totalSeconds, lastUpdated } = result.data;
 
-  const deviceUpdate: Record<string, unknown> = {
-    lastSeenAt: Timestamp.now(),
-  };
-  if (isNewWindow) {
-    deviceUpdate.rateLimitWindowStart = Timestamp.now();
-    deviceUpdate.rateLimitRequestCount = 1;
-  } else {
-    deviceUpdate.rateLimitRequestCount = FieldValue.increment(1);
-  }
+    const db = getDb();
 
-  await db.collection(COLLECTION_DEVICES).doc(deviceId).update(deviceUpdate);
+    // deviceId の登録検証: devices コレクションから parentIds を逆引き
+    const deviceDoc = await db
+      .collection(COLLECTION_DEVICES)
+      .doc(deviceId)
+      .get();
+    if (!deviceDoc.exists) {
+      res.status(401).json({ error: "unknown_device" });
+      return;
+    }
+    const parentIds = deviceDoc.data()!.parentIds as string[];
 
-  // Firestore に upsert
-  const docId = `${deviceId}_${date}_${appName}`;
-  const expireAt = Timestamp.fromDate(
-    new Date(
-      new Date(date).getTime() + USAGE_LOGS_TTL_DAYS * 24 * 60 * 60 * 1000,
-    ),
-  );
+    // レート制限: デバイス単位の分間ウィンドウ
+    const deviceData = deviceDoc.data()!;
+    const now = Date.now();
+    const windowStart = deviceData.rateLimitWindowStart as
+      | Timestamp
+      | undefined;
+    const requestCount = (deviceData.rateLimitRequestCount as number) ?? 0;
 
-  await db
-    .collection(COLLECTION_USAGE_LOGS)
-    .doc(docId)
-    .set(
-      {
-        parentIds,
-        deviceId,
-        date,
-        appName,
-        totalSeconds,
-        lastUpdated: Timestamp.fromDate(new Date(lastUpdated)),
-        expireAt,
-        updatedAt: Timestamp.now(),
-      },
-      { merge: true },
+    if (
+      windowStart &&
+      now - windowStart.toDate().getTime() < RATE_LIMIT_WINDOW_MS
+    ) {
+      // ウィンドウ内: カウントチェック
+      if (requestCount >= RATE_LIMIT_MAX_REQUESTS) {
+        res.status(429).json({ error: "rate_limit_exceeded" });
+        return;
+      }
+    }
+
+    // 日付バリデーション: 未来日や過去 MAX_DATE_AGE_DAYS 日以前を拒否
+    const dateError = validateDate(date);
+    if (dateError) {
+      res.status(400).json({ error: dateError });
+      return;
+    }
+
+    // デバイスの最終通信日時 + レート制限カウンターを更新
+    const isNewWindow =
+      !windowStart ||
+      now - windowStart.toDate().getTime() >= RATE_LIMIT_WINDOW_MS;
+
+    const deviceUpdate: Record<string, unknown> = {
+      lastSeenAt: Timestamp.now(),
+    };
+    if (isNewWindow) {
+      deviceUpdate.rateLimitWindowStart = Timestamp.now();
+      deviceUpdate.rateLimitRequestCount = 1;
+    } else {
+      deviceUpdate.rateLimitRequestCount = FieldValue.increment(1);
+    }
+
+    await db.collection(COLLECTION_DEVICES).doc(deviceId).update(deviceUpdate);
+
+    // Firestore に upsert
+    const docId = `${deviceId}_${date}_${appName}`;
+    const expireAt = Timestamp.fromDate(
+      new Date(
+        new Date(date).getTime() + USAGE_LOGS_TTL_DAYS * 24 * 60 * 60 * 1000,
+      ),
     );
 
-  res.status(200).json({ status: "ok" });
-});
+    await db
+      .collection(COLLECTION_USAGE_LOGS)
+      .doc(docId)
+      .set(
+        {
+          parentIds,
+          deviceId,
+          date,
+          appName,
+          totalSeconds,
+          lastUpdated: Timestamp.fromDate(new Date(lastUpdated)),
+          expireAt,
+          updatedAt: Timestamp.now(),
+        },
+        { merge: true },
+      );
+
+    res.status(200).json({ status: "ok" });
+  },
+);
 
 // ---------------------------------------------------------------------------
 // ヘルパー関数（テスト用にエクスポート）

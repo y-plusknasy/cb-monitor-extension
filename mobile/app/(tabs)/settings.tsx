@@ -9,10 +9,10 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   Alert,
   Platform,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Sun, Moon } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { useAuth } from "../../hooks/useAuth";

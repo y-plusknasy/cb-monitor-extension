@@ -31,7 +31,9 @@
       "bundler": "metro"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      ["./plugins/withGradleVersion", "8.13"],
+      "@react-native-google-signin/google-signin"
     ],
     "extra": {
       "router": {},

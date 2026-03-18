@@ -11,15 +11,13 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "@react-native-async-storage/async-storage": "^1.24.0",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-google-signin/google-signin": "^16.1.2",
     "expo": "~55.0.4",
-    "expo-auth-session": "~55.0.6",
     "expo-constants": "~55.0.7",
-    "expo-crypto": "~55.0.8",
     "expo-linking": "~55.0.7",
-    "expo-router": "~55.0.3",
+    "expo-router": "~55.0.5",
     "expo-status-bar": "~55.0.4",
-    "expo-web-browser": "~55.0.9",
     "firebase": "^11.6.0",
     "lucide-react-native": "^0.577.0",
     "react": "19.2.0",

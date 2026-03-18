@@ -14,33 +14,36 @@ import { COLLECTION_ONE_TIME_CODES } from "./lib/constants.js";
  * 本関数はバックアップとして、および TTL が未設定の環境（Emulator 等）での
  * クリーンアップを担当する。
  */
-export const cleanupExpiredOtps = onSchedule("every day 03:00", async () => {
-  const db = getDb();
-  const now = Timestamp.now();
+export const cleanupExpiredOtps = onSchedule(
+  { schedule: "every day 03:00", region: "asia-northeast1" },
+  async () => {
+    const db = getDb();
+    const now = Timestamp.now();
 
-  const expiredDocs = await db
-    .collection(COLLECTION_ONE_TIME_CODES)
-    .where("expireAt", "<=", now)
-    .get();
+    const expiredDocs = await db
+      .collection(COLLECTION_ONE_TIME_CODES)
+      .where("expireAt", "<=", now)
+      .get();
 
-  if (expiredDocs.empty) {
-    console.log("[cleanupExpiredOtps] 削除対象なし");
-    return;
-  }
-
-  // Firestore のバッチ書き込みは 500 件まで
-  const BATCH_SIZE = 500;
-  let deleted = 0;
-
-  for (let i = 0; i < expiredDocs.docs.length; i += BATCH_SIZE) {
-    const batch = db.batch();
-    const chunk = expiredDocs.docs.slice(i, i + BATCH_SIZE);
-    for (const doc of chunk) {
-      batch.delete(doc.ref);
+    if (expiredDocs.empty) {
+      console.log("[cleanupExpiredOtps] 削除対象なし");
+      return;
     }
-    await batch.commit();
-    deleted += chunk.length;
-  }
 
-  console.log(`[cleanupExpiredOtps] ${deleted} 件の期限切れ OTP を削除`);
-});
+    // Firestore のバッチ書き込みは 500 件まで
+    const BATCH_SIZE = 500;
+    let deleted = 0;
+
+    for (let i = 0; i < expiredDocs.docs.length; i += BATCH_SIZE) {
+      const batch = db.batch();
+      const chunk = expiredDocs.docs.slice(i, i + BATCH_SIZE);
+      for (const doc of chunk) {
+        batch.delete(doc.ref);
+      }
+      await batch.commit();
+      deleted += chunk.length;
+    }
+
+    console.log(`[cleanupExpiredOtps] ${deleted} 件の期限切れ OTP を削除`);
+  },
+);

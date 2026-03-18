@@ -25,72 +25,75 @@ import {
  * - Authorization ヘッダーに Bearer トークンが必要
  * - users コレクションにユーザードキュメントが存在しなければ自動作成
  */
-export const generateOtp = onRequest({ cors: true }, async (req, res) => {
-  if (req.method !== "POST") {
-    res.status(405).json({ error: "method_not_allowed" });
-    return;
-  }
+export const generateOtp = onRequest(
+  { cors: true, region: "asia-northeast1" },
+  async (req, res) => {
+    if (req.method !== "POST") {
+      res.status(405).json({ error: "method_not_allowed" });
+      return;
+    }
 
-  // Authorization ヘッダーから ID Token を抽出
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    res.status(401).json({ error: "unauthorized" });
-    return;
-  }
+    // Authorization ヘッダーから ID Token を抽出
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
 
-  const idToken = authHeader.split("Bearer ")[1];
+    const idToken = authHeader.split("Bearer ")[1];
 
-  let decodedToken;
-  try {
-    decodedToken = await getAdminAuth().verifyIdToken(idToken);
-  } catch {
-    res.status(401).json({ error: "unauthorized" });
-    return;
-  }
+    let decodedToken;
+    try {
+      decodedToken = await getAdminAuth().verifyIdToken(idToken);
+    } catch {
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
 
-  const uid = decodedToken.uid;
-  const email = decodedToken.email || "";
-  const displayName = decodedToken.name || "";
+    const uid = decodedToken.uid;
+    const email = decodedToken.email || "";
+    const displayName = decodedToken.name || "";
 
-  const db = getDb();
+    const db = getDb();
 
-  // users ドキュメントが存在しなければ作成
-  const userRef = db.collection(COLLECTION_USERS).doc(uid);
-  const userDoc = await userRef.get();
-  if (!userDoc.exists) {
-    await userRef.set({
-      email,
-      displayName,
-      childDevices: [],
-      inactivityThresholdDays: DEFAULT_INACTIVITY_THRESHOLD_DAYS,
-      createdAt: Timestamp.now(),
+    // users ドキュメントが存在しなければ作成
+    const userRef = db.collection(COLLECTION_USERS).doc(uid);
+    const userDoc = await userRef.get();
+    if (!userDoc.exists) {
+      await userRef.set({
+        email,
+        displayName,
+        childDevices: [],
+        inactivityThresholdDays: DEFAULT_INACTIVITY_THRESHOLD_DAYS,
+        createdAt: Timestamp.now(),
+      });
+    }
+
+    // 6桁 OTP を生成（暗号学的に安全な乱数を使用）
+    const otp = String(randomInt(OTP_MIN, OTP_MAX));
+
+    // oneTimeCodes コレクションに保存
+    const expiresAt = Timestamp.fromDate(
+      new Date(Date.now() + OTP_EXPIRY_SECONDS * 1000),
+    );
+    await db
+      .collection(COLLECTION_ONE_TIME_CODES)
+      .doc(otp)
+      .set({
+        parentId: uid,
+        expiresAt,
+        used: false,
+        expireAt: Timestamp.fromDate(
+          new Date(Date.now() + OTP_DOCUMENT_TTL_DAYS * 24 * 60 * 60 * 1000),
+        ),
+      });
+
+    res.status(200).json({
+      otp,
+      expiresIn: OTP_EXPIRY_SECONDS,
     });
-  }
-
-  // 6桁 OTP を生成（暗号学的に安全な乱数を使用）
-  const otp = String(randomInt(OTP_MIN, OTP_MAX));
-
-  // oneTimeCodes コレクションに保存
-  const expiresAt = Timestamp.fromDate(
-    new Date(Date.now() + OTP_EXPIRY_SECONDS * 1000),
-  );
-  await db
-    .collection(COLLECTION_ONE_TIME_CODES)
-    .doc(otp)
-    .set({
-      parentId: uid,
-      expiresAt,
-      used: false,
-      expireAt: Timestamp.fromDate(
-        new Date(Date.now() + OTP_DOCUMENT_TTL_DAYS * 24 * 60 * 60 * 1000),
-      ),
-    });
-
-  res.status(200).json({
-    otp,
-    expiresIn: OTP_EXPIRY_SECONDS,
-  });
-});
+  },
+);
 
 // ---------------------------------------------------------------------------
 // registerDevice — デバイス登録（OTP 検証）
@@ -103,87 +106,90 @@ export const generateOtp = onRequest({ cors: true }, async (req, res) => {
  * - devices コレクションに deviceId → parentIds マッピングを作成（再ペアリング時は配列に追加）
  * - users コレクションの childDevices 配列にデバイス情報を追加
  */
-export const registerDevice = onRequest({ cors: true }, async (req, res) => {
-  if (req.method !== "POST") {
-    res.status(405).json({ error: "method_not_allowed" });
-    return;
-  }
-
-  // バリデーション
-  const result = registerDeviceSchema.safeParse(req.body);
-  if (!result.success) {
-    res.status(400).json({
-      error: "validation_error",
-      details: result.error.issues,
-    });
-    return;
-  }
-
-  const { otp, deviceId, deviceName, syncAvailable } = result.data;
-  const db = getDb();
-
-  // OTP を検証
-  const otpRef = db.collection(COLLECTION_ONE_TIME_CODES).doc(otp);
-  const otpDoc = await otpRef.get();
-
-  if (!otpDoc.exists) {
-    res.status(400).json({ error: "invalid_otp" });
-    return;
-  }
-
-  const otpData = otpDoc.data()!;
-
-  if (otpData.used) {
-    res.status(400).json({ error: "otp_already_used" });
-    return;
-  }
-
-  if (otpData.expiresAt.toDate() < new Date()) {
-    res.status(400).json({ error: "otp_expired" });
-    return;
-  }
-
-  const parentId = otpData.parentId as string;
-  const registeredAt = new Date().toISOString();
-
-  // トランザクションで整合性を保証
-  await db.runTransaction(async (tx) => {
-    // Firestore トランザクションでは全ての読み取りを書き込みより前に行う必要がある
-    const deviceRef = db.collection(COLLECTION_DEVICES).doc(deviceId);
-    const deviceDoc = await tx.get(deviceRef);
-
-    // OTP を使用済みにマーク
-    tx.update(otpRef, { used: true });
-
-    if (deviceDoc.exists) {
-      // 再ペアリング: parentIds 配列に追加
-      tx.update(deviceRef, {
-        parentIds: FieldValue.arrayUnion(parentId),
-        deviceName,
-        lastSeenAt: Timestamp.now(),
-        syncAvailable: syncAvailable ?? null,
-      });
-    } else {
-      // 初回ペアリング: 新規作成
-      tx.set(deviceRef, {
-        parentIds: [parentId],
-        deviceName,
-        registeredAt,
-        lastSeenAt: Timestamp.now(),
-        syncAvailable: syncAvailable ?? null,
-      });
+export const registerDevice = onRequest(
+  { cors: true, region: "asia-northeast1" },
+  async (req, res) => {
+    if (req.method !== "POST") {
+      res.status(405).json({ error: "method_not_allowed" });
+      return;
     }
 
-    // users の childDevices 配列に追加
-    const userRef = db.collection(COLLECTION_USERS).doc(parentId);
-    tx.update(userRef, {
-      childDevices: FieldValue.arrayUnion({
-        deviceId,
-        deviceName,
-        registeredAt,
-      }),
-    });
-  });
+    // バリデーション
+    const result = registerDeviceSchema.safeParse(req.body);
+    if (!result.success) {
+      res.status(400).json({
+        error: "validation_error",
+        details: result.error.issues,
+      });
+      return;
+    }
 
-  res.status(200).json({ status: "paired" });
-});
+    const { otp, deviceId, deviceName, syncAvailable } = result.data;
+    const db = getDb();
+
+    // OTP を検証
+    const otpRef = db.collection(COLLECTION_ONE_TIME_CODES).doc(otp);
+    const otpDoc = await otpRef.get();
+
+    if (!otpDoc.exists) {
+      res.status(400).json({ error: "invalid_otp" });
+      return;
+    }
+
+    const otpData = otpDoc.data()!;
+
+    if (otpData.used) {
+      res.status(400).json({ error: "otp_already_used" });
+      return;
+    }
+
+    if (otpData.expiresAt.toDate() < new Date()) {
+      res.status(400).json({ error: "otp_expired" });
+      return;
+    }
+
+    const parentId = otpData.parentId as string;
+    const registeredAt = new Date().toISOString();
+
+    // トランザクションで整合性を保証
+    await db.runTransaction(async (tx) => {
+      // Firestore トランザクションでは全ての読み取りを書き込みより前に行う必要がある
+      const deviceRef = db.collection(COLLECTION_DEVICES).doc(deviceId);
+      const deviceDoc = await tx.get(deviceRef);
+
+      // OTP を使用済みにマーク
+      tx.update(otpRef, { used: true });
+
+      if (deviceDoc.exists) {
+        // 再ペアリング: parentIds 配列に追加
+        tx.update(deviceRef, {
+          parentIds: FieldValue.arrayUnion(parentId),
+          deviceName,
+          lastSeenAt: Timestamp.now(),
+          syncAvailable: syncAvailable ?? null,
+        });
+      } else {
+        // 初回ペアリング: 新規作成
+        tx.set(deviceRef, {
+          parentIds: [parentId],
+          deviceName,
+          registeredAt,
+          lastSeenAt: Timestamp.now(),
+          syncAvailable: syncAvailable ?? null,
+        });
+      }
+
+      // users の childDevices 配列に追加
+      const userRef = db.collection(COLLECTION_USERS).doc(parentId);
+      tx.update(userRef, {
+        childDevices: FieldValue.arrayUnion({
+          deviceId,
+          deviceName,
+          registeredAt,
+        }),
+      });
+    });
+
+    res.status(200).json({ status: "paired" });
+  },
+);

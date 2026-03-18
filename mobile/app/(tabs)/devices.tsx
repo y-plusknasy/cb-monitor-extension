@@ -10,9 +10,9 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   Alert,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../hooks/useAuth";
 import { useDevices } from "../../hooks/useDevices";
 import { DeviceCard } from "../../components/DeviceCard";
