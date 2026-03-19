@@ -139,7 +139,9 @@ export const usageLogs = onRequest(
 /**
  * 日付文字列 (YYYY-MM-DD) が受け付け可能な範囲内かを検証する。
  *
- * - 未来日: 翌日以降は拒否
+ * - 未来日: UTC+14（最も進んだタイムゾーン）の「今日」を超える日付は拒否。
+ *   クライアントがローカル日付（例: JST = UTC+9）を送信するため、
+ *   UTC 基準では「明日」に見える日付も許容する必要がある。
  * - 過去日: MAX_DATE_AGE_DAYS 日より前は拒否
  *
  * @returns エラーメッセージ。問題なければ null
@@ -150,16 +152,21 @@ export function validateDate(date: string): string | null {
     return "invalid_date";
   }
 
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
+  const now = Date.now();
 
-  const tomorrow = new Date(today);
-  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+  // 最も進んだタイムゾーン（UTC+14）での「今日の終わり」を未来日カットオフとする
+  const MAX_TZ_OFFSET_MS = 14 * 60 * 60 * 1000;
+  const farthestNow = new Date(now + MAX_TZ_OFFSET_MS);
+  farthestNow.setUTCHours(0, 0, 0, 0);
+  const futureLimit = new Date(farthestNow);
+  futureLimit.setUTCDate(futureLimit.getUTCDate() + 1);
 
-  if (target >= tomorrow) {
+  if (target >= futureLimit) {
     return "future_date_not_allowed";
   }
 
+  const today = new Date(now);
+  today.setUTCHours(0, 0, 0, 0);
   const oldest = new Date(today);
   oldest.setUTCDate(oldest.getUTCDate() - MAX_DATE_AGE_DAYS);
 

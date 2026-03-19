@@ -9,6 +9,7 @@ import {
   STORAGE_KEY_SENT_DATES,
   STORAGE_KEY_LAST_SENT_ETAG,
   SYNC_KEY_DEVICE_BACKUPS,
+  DEFAULT_API_ENDPOINT,
 } from "../utils/constants.js";
 import {
   getStorage,
@@ -114,11 +115,8 @@ async function loadSettings() {
 settingsForm.addEventListener("submit", async (e) => {
   e.preventDefault();
 
-  const endpoint = endpointInput.value.trim();
-  if (!endpoint) {
-    showMessage(messageEl, "URL を入力してください", "error");
-    return;
-  }
+  // 入力が空の場合はデフォルトの本番エンドポイントを使用
+  const endpoint = endpointInput.value.trim() || DEFAULT_API_ENDPOINT;
 
   try {
     await setStorage(STORAGE_KEY_API_ENDPOINT, endpoint);

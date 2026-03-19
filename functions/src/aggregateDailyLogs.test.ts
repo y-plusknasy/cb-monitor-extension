@@ -96,11 +96,13 @@ describe("getYesterdayDateString", () => {
     expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
-  it("前日の日付を返す", () => {
+  it("JST 基準で前日の日付を返す", () => {
     const result = getYesterdayDateString();
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const expected = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, "0")}-${String(yesterday.getDate()).padStart(2, "0")}`;
+    // JST (UTC+9) での「昨日」を計算
+    const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
+    const nowJst = new Date(Date.now() + JST_OFFSET_MS);
+    nowJst.setUTCDate(nowJst.getUTCDate() - 1);
+    const expected = `${nowJst.getUTCFullYear()}-${String(nowJst.getUTCMonth() + 1).padStart(2, "0")}-${String(nowJst.getUTCDate()).padStart(2, "0")}`;
     expect(result).toBe(expected);
   });
 });

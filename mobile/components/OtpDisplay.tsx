@@ -3,6 +3,9 @@
  *
  * 発行された OTP コードとカウントダウンタイマーを表示する。
  * 期限切れ時にコールバックを呼び出す。
+ *
+ * 残り時間は expiresIn 受信時の絶対時刻から算出するため、
+ * アプリがバックグラウンドにある間もカウントダウンが正しく進む。
  */
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { View, Text, StyleSheet } from "react-native";
@@ -21,8 +24,9 @@ interface OtpDisplayProps {
 /**
  * OTP コードと残り時間を表示するコンポーネント。
  *
- * カウントダウンタイマーで残り時間を表示し、
- * 期限切れ時に onExpired コールバックを呼び出す。
+ * expiresIn を受け取った時点で有効期限の絶対時刻を確定し、
+ * Date.now() との差分で残り時間を計算する。
+ * アプリのアクティブ/非アクティブに関わらず正確にカウントダウンする。
  */
 export function OtpDisplay({
   otp,
@@ -30,32 +34,38 @@ export function OtpDisplay({
   onExpired,
 }: OtpDisplayProps): React.JSX.Element {
   const { colors } = useTheme();
-  const [remaining, setRemaining] = useState(expiresIn);
   const onExpiredRef = useRef(onExpired);
   onExpiredRef.current = onExpired;
 
+  // expiresIn 受信時に有効期限の絶対時刻を確定
+  const [expiresAt, setExpiresAt] = useState(
+    () => Date.now() + expiresIn * 1000,
+  );
+  const [remaining, setRemaining] = useState(expiresIn);
+
+  // otp または expiresIn が変わったら有効期限を再計算
   useEffect(() => {
-    setRemaining(expiresIn);
+    setExpiresAt(Date.now() + expiresIn * 1000);
   }, [expiresIn, otp]);
 
   useEffect(() => {
-    if (remaining <= 0) {
-      onExpiredRef.current();
-      return;
-    }
+    /** 現在時刻から残り秒数を計算 */
+    const calcRemaining = () =>
+      Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+
+    setRemaining(calcRemaining());
 
     const timer = setInterval(() => {
-      setRemaining((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          return 0;
-        }
-        return prev - 1;
-      });
+      const r = calcRemaining();
+      setRemaining(r);
+      if (r <= 0) {
+        clearInterval(timer);
+        onExpiredRef.current();
+      }
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [remaining]);
+  }, [expiresAt]);
 
   /** 残り時間をフォーマット（M:SS） */
   const formatRemaining = useCallback((seconds: number): string => {

@@ -7,6 +7,7 @@
 import React from "react";
 import { Tabs } from "expo-router";
 import { View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Home, Laptop, Settings } from "lucide-react-native";
 import { useTheme } from "../../contexts/ThemeContext";
 
@@ -35,6 +36,7 @@ function TabIcon({
 }
 
 export default function TabsLayout(): React.JSX.Element {
+  const insets = useSafeAreaInsets();
   const { colors } = useTheme();
 
   return (
@@ -45,8 +47,8 @@ export default function TabsLayout(): React.JSX.Element {
         tabBarStyle: {
           backgroundColor: colors.tabBar,
           borderTopColor: colors.border,
-          height: 60,
-          paddingBottom: 6,
+          height: 60 + insets.bottom,
+          paddingBottom: 6 + insets.bottom,
         },
         headerShown: false,
       }}

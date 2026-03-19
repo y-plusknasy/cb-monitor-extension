@@ -24,6 +24,7 @@ import {
   MIN_DURATION_SECONDS,
   BUFFER_RETENTION_DAYS,
   UNLINKED_BUFFER_RETENTION_DAYS,
+  DEFAULT_API_ENDPOINT,
 } from "../utils/constants.js";
 import {
   getStorage,
@@ -132,6 +133,16 @@ async function initialize() {
     }
   }
   state.deviceId = deviceId;
+
+  // API エンドポイントが未設定なら本番デフォルトを設定
+  const currentEndpoint = await getStorage(STORAGE_KEY_API_ENDPOINT);
+  if (!currentEndpoint) {
+    await setStorage(STORAGE_KEY_API_ENDPOINT, DEFAULT_API_ENDPOINT);
+    console.log(
+      "[CBLink] デフォルト API エンドポイントを設定:",
+      DEFAULT_API_ENDPOINT,
+    );
+  }
 
   // 前回の計測セッションを復元
   // Service Worker が再起動した場合、前回の計測中だった情報が残っている。

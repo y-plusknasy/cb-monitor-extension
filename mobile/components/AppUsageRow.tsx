@@ -8,6 +8,7 @@
  */
 import React from "react";
 import { View, Text, Image, StyleSheet } from "react-native";
+import { Laptop } from "lucide-react-native";
 import { formatDuration } from "../lib/formatters";
 import {
   APP_NAME_CHROME_BROWSER,
@@ -85,9 +86,7 @@ export function AppUsageRow({
               { backgroundColor: colors.cardGray },
             ]}
           >
-            <Text style={styles.iconText}>
-              {appName === APP_NAME_CHROME_BROWSER ? "🌐" : "❓"}
-            </Text>
+            <Laptop size={18} color={colors.textSecondary} />
           </View>
         )}
       </View>
@@ -132,9 +131,6 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     justifyContent: "center",
     alignItems: "center",
-  },
-  iconText: {
-    fontSize: 16,
   },
   appName: {
     flex: 1,

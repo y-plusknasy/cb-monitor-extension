@@ -134,13 +134,19 @@ export function aggregateUsageLogs(
 }
 
 /**
- * 前日の日付文字列 (YYYY-MM-DD) を返す。
+ * JST (UTC+9) 基準で前日の日付文字列 (YYYY-MM-DD) を返す。
+ *
+ * このバッチは 15:00 UTC (= 00:00 JST) に実行されるため、
+ * 「前日」は JST 基準で計算する必要がある。
+ * Firebase Functions の実行環境は通常 UTC のため、ローカル時間ではなく
+ * 明示的に JST オフセットを加算して計算する。
  */
 export function getYesterdayDateString(): string {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
+  const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
+  const nowJst = new Date(Date.now() + JST_OFFSET_MS);
+  nowJst.setUTCDate(nowJst.getUTCDate() - 1);
+  const year = nowJst.getUTCFullYear();
+  const month = String(nowJst.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(nowJst.getUTCDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }

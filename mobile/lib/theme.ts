@@ -67,7 +67,7 @@ export const lightColors: ThemeColors = {
   background: "#F9FAFB",
   card: "#FFFFFF",
   cardGray: "#F3F4F6",
-  cardOrange: "#FFE0CC",
+  cardOrange: "#FFFAF0",
   primary: "#4285F4",
   primaryPressed: "#3367D6",
   primaryDisabled: "#A0C4FF",
