@@ -1,10 +1,18 @@
 {
   "manifest_version": 3,
   "name": "CB Link",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Chrome ブラウザおよび PWA の利用時間を監視し、保護者へリアルタイムに共有する拡張機能",
-  "permissions": ["tabs", "storage", "alarms"],
-  "host_permissions": ["http://localhost/*", "https://*.cloudfunctions.net/*"],
+  "permissions": [
+    "tabs",
+    "storage",
+    "alarms",
+    "idle"
+  ],
+  "host_permissions": [
+    "http://localhost/*",
+    "https://*.cloudfunctions.net/*"
+  ],
   "background": {
     "service_worker": "background/service-worker.js",
     "type": "module"

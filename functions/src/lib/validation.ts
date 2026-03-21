@@ -88,3 +88,25 @@ export const registerDeviceSchema = z
 
 /** registerDeviceSchema から推論されるリクエスト型 */
 export type RegisterDeviceRequest = z.infer<typeof registerDeviceSchema>;
+
+// ---------------------------------------------------------------------------
+// デバイス名更新用スキーマ
+// ---------------------------------------------------------------------------
+
+/**
+ * デバイス名更新リクエストのバリデーションスキーマ
+ *
+ * - deviceId: UUID v4 形式
+ * - deviceName: デバイス表示名（1〜100文字、制御文字禁止）
+ *
+ * strict() により未定義のプロパティが含まれている場合はバリデーションエラーとなる。
+ */
+export const updateDeviceNameSchema = z
+  .object({
+    deviceId: z.string().uuid(),
+    deviceName: safeDeviceName,
+  })
+  .strict();
+
+/** updateDeviceNameSchema から推論されるリクエスト型 */
+export type UpdateDeviceNameRequest = z.infer<typeof updateDeviceNameSchema>;

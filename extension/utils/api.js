@@ -46,9 +46,7 @@ export async function sendUsageLogs(endpoint, logs) {
 
       if (!response.ok) {
         const errorBody = await response.text();
-        console.error(
-          `[CBLink] API エラー: ${response.status} ${errorBody}`,
-        );
+        console.error(`[CBLink] API エラー: ${response.status} ${errorBody}`);
         return false;
       }
     }
@@ -99,6 +97,40 @@ export async function registerDevice(
     return { success: false, error: errorBody.error || "unknown_error" };
   } catch (error) {
     console.error("[CBLink] ペアリング登録エラー:", error);
+    return { success: false, error: "network_error" };
+  }
+}
+
+/**
+ * Firestore 上のデバイス名を更新する
+ *
+ * @param {string} usageLogsEndpoint - usageLogs の完全 URL（updateDeviceName URL を導出するため）
+ * @param {string} deviceId - デバイス UUID
+ * @param {string} deviceName - 新しいデバイス表示名
+ * @returns {Promise<{success: boolean, error?: string}>} 更新結果
+ */
+export async function updateDeviceName(
+  usageLogsEndpoint,
+  deviceId,
+  deviceName,
+) {
+  const endpoint = deriveEndpointUrl(usageLogsEndpoint, "updateDeviceName");
+
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deviceId, deviceName }),
+    });
+
+    if (response.ok) {
+      return { success: true };
+    }
+
+    const errorBody = await response.json();
+    return { success: false, error: errorBody.error || "unknown_error" };
+  } catch (error) {
+    console.error("[CBLink] デバイス名更新エラー:", error);
     return { success: false, error: "network_error" };
   }
 }

@@ -1,0 +1,28 @@
+name: Deploy Mobile
+
+on:
+  push:
+    tags:
+      - "mobile/v*"
+
+permissions:
+  contents: write
+
+jobs:
+  # モバイル CI + Release 作成
+  # APK ビルドは EAS Build を利用（ADR-009 参照）
+  create-release:
+    name: Create Mobile Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          VERSION="${TAG#mobile/}"
+          gh release create "$TAG" \
+            --title "CB Link Mobile $VERSION" \
+            --generate-notes

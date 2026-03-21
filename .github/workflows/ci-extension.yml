@@ -1,0 +1,31 @@
+name: CI — Extension
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "extension/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "extension/**"
+
+jobs:
+  extension-ci:
+    name: Extension — Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: extension
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: extension/package-lock.json
+
+      - run: npm ci
+
+      - run: npm test

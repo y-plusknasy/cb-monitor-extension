@@ -19,7 +19,7 @@ import {
   isSyncStorageAvailable,
   computeDeviceFingerprint,
 } from "../utils/storage.js";
-import { registerDevice } from "../utils/api.js";
+import { registerDevice, updateDeviceName } from "../utils/api.js";
 
 // ---------------------------------------------------------------------------
 // DOM 要素
@@ -84,8 +84,11 @@ const advancedBody = document.getElementById("advanced-body");
 function showMessage(el, text, type) {
   el.textContent = text;
   el.className = `message ${type}`;
-  setTimeout(() => {
+  // 前回のタイマーをキャンセルして、複数呼び出し時の競合を防止
+  if (el._hideTimer) clearTimeout(el._hideTimer);
+  el._hideTimer = setTimeout(() => {
     el.className = "message";
+    el._hideTimer = null;
   }, 5000);
 }
 
@@ -204,6 +207,17 @@ saveNameBtn.addEventListener("click", async () => {
     const status = await getStorage(STORAGE_KEY_PAIRING_STATUS);
     if (!status) return;
 
+    // Firestore の devices コレクションも更新
+    const endpoint = await getStorage(STORAGE_KEY_API_ENDPOINT);
+    const deviceId = await getStorage(STORAGE_KEY_DEVICE_ID);
+    if (endpoint && deviceId) {
+      const result = await updateDeviceName(endpoint, deviceId, newName);
+      if (!result.success) {
+        console.warn("[CBLink] Firestore デバイス名更新失敗:", result.error);
+        // Firestore 更新失敗でもローカルは更新する（次回ペアリング時に同期される）
+      }
+    }
+
     status.deviceName = newName;
     await setStorage(STORAGE_KEY_PAIRING_STATUS, status);
 
@@ -309,8 +323,12 @@ pairingForm.addEventListener("submit", async (e) => {
         }
       }
 
+      // OTP 入力をクリアしてプレースホルダーに戻す
+      otpCodeInput.value = "";
+
       showMessage(pairingMessageEl, "デバイス登録が完了しました", "success");
-      await loadPairingStatus();
+      // メッセージが見えるよう少し待ってからビュー切り替え
+      setTimeout(() => loadPairingStatus(), 2000);
     } else {
       const msg =
         OTP_ERROR_MESSAGES[result.error] ||

@@ -1,0 +1,35 @@
+name: CI — Functions
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "functions/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "functions/**"
+
+jobs:
+  functions-ci:
+    name: Functions — Build / Lint / Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: functions
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+
+      - run: npm ci
+
+      - run: npm run build
+
+      - run: npm run lint
+
+      - run: npm test
