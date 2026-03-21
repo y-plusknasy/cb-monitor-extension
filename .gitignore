@@ -4,6 +4,7 @@ node_modules/
 # Build output
 functions/dist/
 build/
+extension/releases/
 
 # Firebase
 firebase-debug.log

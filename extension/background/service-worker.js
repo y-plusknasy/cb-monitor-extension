@@ -1,13 +1,17 @@
 /**
- * Service Worker — メインのトラッキングロジック
+ * Service Worker — イベント駆動型トラッキングロジック
  *
  * Chrome ブラウザおよび PWA の利用時間を計測し、
  * 定期的に Firebase Functions API へ送信する。
  *
- * 状態管理は chrome.storage.local をプライマリストアとし、
- * Service Worker のライフサイクル（停止・再起動）に耐える設計。
+ * 設計方針:
+ * - すべての状態は chrome.storage.local に永続化（SW 再起動耐性）
+ * - 「アクティブポインタ」で現在の計測対象ドメインを管理
+ * - イベント駆動で計測開始・終了・切り替え
+ * - ポインタ操作は直列化キューで排他制御（二重計上防止）
  *
  * @see docs/adr/ADR-001-daily-usage-buffer-design.md
+ * @see docs/review/v1.0/redesign-extension.md
  */
 
 import {
@@ -19,11 +23,16 @@ import {
   STORAGE_KEY_LAST_SENT_ETAG,
   STORAGE_KEY_PAIRING_STATUS,
   STORAGE_KEY_LAST_CLEANUP_DATE,
+  STORAGE_KEY_ACTIVE_POINTER,
+  STORAGE_KEY_LAST_UPLOAD_TIMESTAMP,
   SYNC_KEY_DEVICE_BACKUPS,
   ALARM_NAME_FLUSH,
   MIN_DURATION_SECONDS,
   BUFFER_RETENTION_DAYS,
   UNLINKED_BUFFER_RETENTION_DAYS,
+  UPLOAD_INTERVAL_MS,
+  MAX_POINTER_STALENESS_MS,
+  IDLE_DETECTION_INTERVAL_SECONDS,
   DEFAULT_API_ENDPOINT,
 } from "../utils/constants.js";
 import {
@@ -42,24 +51,27 @@ import {
 } from "../utils/tracking.js";
 
 // ---------------------------------------------------------------------------
-// インメモリ状態（現在の計測セッションのみ。永続化は chrome.storage）
+// 排他制御（ポインタ操作の直列化キュー）
 // ---------------------------------------------------------------------------
 
 /**
- * @type {{
- *   currentAppName: string|null,
- *   trackingStartTime: number|null,
- *   deviceId: string|null
- * }}
+ * ポインタ操作の直列化キュー。
+ * 複数のイベントが短時間に発火した場合に、storage の読み書きを
+ * 順序保証付きで実行し、二重計上を防止する。
  */
-const state = {
-  /** 現在計測中のアプリ名 (PWA: ドメイン名 / Browser: "chrome" / null: 非アクティブ) */
-  currentAppName: null,
-  /** 現在のアプリの計測開始時刻 (ms) */
-  trackingStartTime: null,
-  /** デバイスID（chrome.storage からロード） */
-  deviceId: null,
-};
+let pointerQueue = Promise.resolve();
+
+/**
+ * ポインタ操作を直列化キューに追加して実行する
+ * @param {() => Promise<void>} fn - 実行する非同期関数
+ * @returns {Promise<void>}
+ */
+function withPointerLock(fn) {
+  pointerQueue = pointerQueue.then(fn).catch((err) => {
+    console.error("[CBLink] ポインタ操作エラー:", err);
+  });
+  return pointerQueue;
+}
 
 // ---------------------------------------------------------------------------
 // chrome.storage.sync バックアップからの復元
@@ -96,154 +108,39 @@ async function restoreFromSyncBackup() {
 }
 
 // ---------------------------------------------------------------------------
-// 初期化
+// ポインタ操作
 // ---------------------------------------------------------------------------
 
 /**
- * Service Worker の初期化
- * - deviceId の取得または生成
- * - 前回の計測セッションの復元（Service Worker 再起動対策）
- * - 古い日付データのガベージコレクション
- * - 未送信の過去日付データの送信
- * - 定期送信アラームの登録
+ * アクティブポインタを確定し、dailyUsage に利用時間を加算する。
+ *
+ * @param {{domain: string, startTime: number, triggerEvent: string}} pointer
+ * @param {number} endTime - 確定時刻 (ms)
  */
-async function initialize() {
-  // deviceId の取得または復元または新規生成
-  let deviceId = await getStorage(STORAGE_KEY_DEVICE_ID);
-  if (!deviceId) {
-    // chrome.storage.sync からの復元を試みる
-    const restored = await restoreFromSyncBackup();
-    if (restored) {
-      deviceId = restored.deviceId;
-      await setStorage(STORAGE_KEY_DEVICE_ID, deviceId);
-      if (restored.pairingStatus) {
-        await setStorage(STORAGE_KEY_PAIRING_STATUS, restored.pairingStatus);
-      }
-      if (restored.apiEndpoint) {
-        await setStorage(STORAGE_KEY_API_ENDPOINT, restored.apiEndpoint);
-      }
-      console.log(
-        "[CBLink] chrome.storage.sync から deviceId を復元:",
-        deviceId,
-      );
-    } else {
-      deviceId = crypto.randomUUID();
-      await setStorage(STORAGE_KEY_DEVICE_ID, deviceId);
-      console.log("[CBLink] 新規 deviceId を生成:", deviceId);
-    }
-  }
-  state.deviceId = deviceId;
+async function finalizePointer(pointer, endTime) {
+  if (!pointer || !pointer.domain || !pointer.startTime) return;
 
-  // API エンドポイントが未設定なら本番デフォルトを設定
-  const currentEndpoint = await getStorage(STORAGE_KEY_API_ENDPOINT);
-  if (!currentEndpoint) {
-    await setStorage(STORAGE_KEY_API_ENDPOINT, DEFAULT_API_ENDPOINT);
-    console.log(
-      "[CBLink] デフォルト API エンドポイントを設定:",
-      DEFAULT_API_ENDPOINT,
-    );
-  }
+  const durationSeconds = Math.floor((endTime - pointer.startTime) / 1000);
+  if (durationSeconds < MIN_DURATION_SECONDS) return;
 
-  // 前回の計測セッションを復元
-  // Service Worker が再起動した場合、前回の計測中だった情報が残っている。
-  // ただし停止中の時間は計測不能なため、セッションは破棄する。
-  const prevSession = await getStorage(STORAGE_KEY_TRACKING_SESSION);
-  if (prevSession) {
-    console.log(
-      `[CBLink] 前回セッション破棄: ${prevSession.appName} (Service Worker 再起動のため)`,
-    );
-    await setStorage(STORAGE_KEY_TRACKING_SESSION, null);
-  }
-
-  // 古い日付データのガベージコレクション
-  // ペアリング済みの場合は BUFFER_RETENTION_DAYS、未ペアリングの場合は UNLINKED_BUFFER_RETENTION_DAYS
-  const pairingStatus = await getStorage(STORAGE_KEY_PAIRING_STATUS);
-  const retentionDays = pairingStatus
-    ? BUFFER_RETENTION_DAYS
-    : UNLINKED_BUFFER_RETENTION_DAYS;
-  const dailyUsage = (await getStorage(STORAGE_KEY_DAILY_USAGE)) || {};
-  const pruned = pruneOldDates(dailyUsage, retentionDays);
-  await setStorage(STORAGE_KEY_DAILY_USAGE, pruned);
-
-  // 送信済みリストもクリーンアップ
-  const sentDates = (await getStorage(STORAGE_KEY_SENT_DATES)) || [];
-  const today = getToday();
-  const cleanedSentDates = sentDates.filter((d) => {
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - retentionDays + 1);
-    return d >= getToday(cutoff);
-  });
-  await setStorage(STORAGE_KEY_SENT_DATES, cleanedSentDates);
-
-  // 未送信データを送信（当日分含む）
-  await flushUsageData();
-
-  // 定期送信アラームの登録（1分間隔）
-  await chrome.alarms.create(ALARM_NAME_FLUSH, { periodInMinutes: 1 });
-  console.log("[CBLink] 初期化完了 deviceId:", deviceId);
-}
-
-// ---------------------------------------------------------------------------
-// トラッキング
-// ---------------------------------------------------------------------------
-
-/**
- * 利用時間計測を開始する
- * @param {string} appName - 計測対象のアプリ名
- */
-async function startTracking(appName) {
-  state.currentAppName = appName;
-  state.trackingStartTime = Date.now();
-
-  // chrome.storage に現在のセッション情報を永続化
-  await setStorage(STORAGE_KEY_TRACKING_SESSION, {
-    appName,
-    startTime: state.trackingStartTime,
-  });
-
-  console.log("[CBLink] 計測開始:", appName);
-}
-
-/**
- * 現在の計測を停止し、日付別バッファに加算する
- */
-async function stopTracking() {
-  if (!state.currentAppName || !state.trackingStartTime) {
-    return;
-  }
-
-  const now = Date.now();
-  const durationSeconds = Math.floor((now - state.trackingStartTime) / 1000);
-
-  // 最小秒数未満は無視
-  if (durationSeconds < MIN_DURATION_SECONDS) {
-    state.currentAppName = null;
-    state.trackingStartTime = null;
-    await setStorage(STORAGE_KEY_TRACKING_SESSION, null);
-    return;
-  }
-
-  // 日付をまたぐ場合の分割処理
-  const startDate = getToday(new Date(state.trackingStartTime));
-  const endDate = getToday(new Date(now));
+  const startDate = getToday(new Date(pointer.startTime));
+  const endDate = getToday(new Date(endTime));
 
   let dailyUsage = (await getStorage(STORAGE_KEY_DAILY_USAGE)) || {};
 
   if (startDate === endDate) {
-    // 同日: そのまま加算
     dailyUsage = addUsageToDailyBuffer(
       dailyUsage,
       startDate,
-      state.currentAppName,
+      pointer.domain,
       durationSeconds,
     );
   } else {
     // 日付跨ぎ: 各日に分割して加算
-    // startDate の分: startTime 〜 翌日 0:00
-    const midnight = new Date(now);
+    const midnight = new Date(endTime);
     midnight.setHours(0, 0, 0, 0);
     const secondsBeforeMidnight = Math.floor(
-      (midnight.getTime() - state.trackingStartTime) / 1000,
+      (midnight.getTime() - pointer.startTime) / 1000,
     );
     const secondsAfterMidnight = durationSeconds - secondsBeforeMidnight;
 
@@ -251,7 +148,7 @@ async function stopTracking() {
       dailyUsage = addUsageToDailyBuffer(
         dailyUsage,
         startDate,
-        state.currentAppName,
+        pointer.domain,
         secondsBeforeMidnight,
       );
     }
@@ -259,26 +156,70 @@ async function stopTracking() {
       dailyUsage = addUsageToDailyBuffer(
         dailyUsage,
         endDate,
-        state.currentAppName,
+        pointer.domain,
         secondsAfterMidnight,
       );
     }
   }
 
   await setStorage(STORAGE_KEY_DAILY_USAGE, dailyUsage);
+  console.log(`[CBLink] 計測確定: ${pointer.domain} (${durationSeconds}秒)`);
+}
 
-  console.log(
-    `[CBLink] 計測停止: ${state.currentAppName} (${durationSeconds}秒)`,
-  );
+/**
+ * ドメインを切り替える（旧ドメインの確定 → 新ドメインのポインタ作成）。
+ * 直列化キュー内で実行され、二重計上を防止する。
+ *
+ * @param {string|null} newAppName - 新しい計測対象（null = 計測停止）
+ * @param {string} triggerEvent - トリガーとなったイベント名
+ */
+async function switchDomain(newAppName, triggerEvent) {
+  return withPointerLock(async () => {
+    const now = Date.now();
+    const pointer = await getStorage(STORAGE_KEY_ACTIVE_POINTER);
 
-  state.currentAppName = null;
-  state.trackingStartTime = null;
-  await setStorage(STORAGE_KEY_TRACKING_SESSION, null);
+    // 同じドメインなら切り替え不要
+    if (pointer && pointer.domain === newAppName) {
+      return;
+    }
+
+    // 旧ドメインの利用時間を確定
+    if (pointer) {
+      await finalizePointer(pointer, now);
+    }
+
+    // 新ドメインのポインタ作成 or クリア
+    if (newAppName) {
+      await setStorage(STORAGE_KEY_ACTIVE_POINTER, {
+        domain: newAppName,
+        startTime: now,
+        triggerEvent,
+      });
+      console.log(`[CBLink] 計測開始: ${newAppName} (${triggerEvent})`);
+    } else {
+      await setStorage(STORAGE_KEY_ACTIVE_POINTER, null);
+      console.log(`[CBLink] 計測停止 (${triggerEvent})`);
+    }
+  });
 }
 
 // ---------------------------------------------------------------------------
 // ログ送信
 // ---------------------------------------------------------------------------
+
+/**
+ * 前回アップロードから UPLOAD_INTERVAL_MS 以上経過している場合のみ送信する。
+ * SW が頻繁に再起動しても通信コストを抑制する。
+ */
+async function conditionalUpload() {
+  const lastUpload = (await getStorage(STORAGE_KEY_LAST_UPLOAD_TIMESTAMP)) || 0;
+  const now = Date.now();
+
+  if (now - lastUpload < UPLOAD_INTERVAL_MS) return;
+
+  await flushUsageData();
+  await setStorage(STORAGE_KEY_LAST_UPLOAD_TIMESTAMP, now);
+}
 
 /**
  * dailyUsage バッファを API に送信する
@@ -292,11 +233,14 @@ async function flushUsageData() {
     return;
   }
 
-  // S02: ペアリング済みの場合のみ送信する
+  // ペアリング済みの場合のみ送信する
   const pairingStatus = await getStorage(STORAGE_KEY_PAIRING_STATUS);
   if (!pairingStatus) {
     return;
   }
+
+  const deviceId = await getStorage(STORAGE_KEY_DEVICE_ID);
+  if (!deviceId) return;
 
   const dailyUsage = (await getStorage(STORAGE_KEY_DAILY_USAGE)) || {};
   const sentDates = (await getStorage(STORAGE_KEY_SENT_DATES)) || [];
@@ -325,7 +269,7 @@ async function flushUsageData() {
   for (const date of datesToSend) {
     const apps = dailyUsage[date];
     const logs = Object.entries(apps).map(([appName, data]) => ({
-      deviceId: state.deviceId,
+      deviceId,
       date,
       appName,
       totalSeconds: data.totalSeconds,
@@ -360,12 +304,249 @@ async function flushUsageData() {
   );
 }
 
+// ---------------------------------------------------------------------------
+// 初期化
+// ---------------------------------------------------------------------------
+
 /**
- * 定期アラームで呼ばれるフラッシュ処理
- * - 現在計測中のセッションを一旦停止→バッファ加算→再開
- * - 過去日付データを API に送信
+ * Service Worker の初期化 — システムの心臓部。
+ *
+ * SW が起動するたびに呼ばれ、以下を順に実行する:
+ * 1. deviceId の取得 / 復元 / 新規生成
+ * 2. 旧 trackingSession のマイグレーション
+ * 3. アクティブポインタのクラッシュリカバリ
+ * 4. 古い日付データのガベージコレクション
+ * 5. 条件付き Firebase 同期
+ * 6. 定期アラーム・idle 検知の登録
+ * 7. 現在のアクティブタブの計測開始
  */
-async function flushOnAlarm() {
+async function initialize() {
+  // --- Phase 1: deviceId ---
+  let deviceId = await getStorage(STORAGE_KEY_DEVICE_ID);
+  if (!deviceId) {
+    const restored = await restoreFromSyncBackup();
+    if (restored) {
+      deviceId = restored.deviceId;
+      await setStorage(STORAGE_KEY_DEVICE_ID, deviceId);
+      if (restored.pairingStatus) {
+        await setStorage(STORAGE_KEY_PAIRING_STATUS, restored.pairingStatus);
+      }
+      if (restored.apiEndpoint) {
+        await setStorage(STORAGE_KEY_API_ENDPOINT, restored.apiEndpoint);
+      }
+      console.log(
+        "[CBLink] chrome.storage.sync から deviceId を復元:",
+        deviceId,
+      );
+    } else {
+      deviceId = crypto.randomUUID();
+      await setStorage(STORAGE_KEY_DEVICE_ID, deviceId);
+      console.log("[CBLink] 新規 deviceId を生成:", deviceId);
+    }
+  }
+
+  // API エンドポイントが未設定なら本番デフォルトを設定
+  const currentEndpoint = await getStorage(STORAGE_KEY_API_ENDPOINT);
+  if (!currentEndpoint) {
+    await setStorage(STORAGE_KEY_API_ENDPOINT, DEFAULT_API_ENDPOINT);
+  }
+
+  // --- Phase 2: マイグレーション（旧 trackingSession をクリア） ---
+  const prevSession = await getStorage(STORAGE_KEY_TRACKING_SESSION);
+  if (prevSession) {
+    await setStorage(STORAGE_KEY_TRACKING_SESSION, null);
+    console.log("[CBLink] 旧 trackingSession をクリア");
+  }
+
+  // --- Phase 3: クラッシュリカバリ ---
+  await withPointerLock(async () => {
+    const pointer = await getStorage(STORAGE_KEY_ACTIVE_POINTER);
+    if (pointer && pointer.startTime) {
+      const elapsed = Date.now() - pointer.startTime;
+      if (elapsed >= MAX_POINTER_STALENESS_MS) {
+        // 古いポインタ: MAX_POINTER_STALENESS_MS 分だけ救済して破棄
+        await finalizePointer(
+          pointer,
+          pointer.startTime + MAX_POINTER_STALENESS_MS,
+        );
+        await setStorage(STORAGE_KEY_ACTIVE_POINTER, null);
+        console.log("[CBLink] 古いポインタを救済・クリア");
+      } else {
+        // 直近のポインタ: SW 再起動間の計測は継続とみなす
+        console.log(
+          `[CBLink] ポインタ維持: ${pointer.domain} (${Math.round(elapsed / 1000)}秒前)`,
+        );
+      }
+    }
+  });
+
+  // --- Phase 4: ガベージコレクション ---
+  const pairingStatus = await getStorage(STORAGE_KEY_PAIRING_STATUS);
+  const retentionDays = pairingStatus
+    ? BUFFER_RETENTION_DAYS
+    : UNLINKED_BUFFER_RETENTION_DAYS;
+  const dailyUsage = (await getStorage(STORAGE_KEY_DAILY_USAGE)) || {};
+  const pruned = pruneOldDates(dailyUsage, retentionDays);
+  await setStorage(STORAGE_KEY_DAILY_USAGE, pruned);
+
+  const sentDates = (await getStorage(STORAGE_KEY_SENT_DATES)) || [];
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - retentionDays + 1);
+  const cleanedSentDates = sentDates.filter((d) => d >= getToday(cutoff));
+  await setStorage(STORAGE_KEY_SENT_DATES, cleanedSentDates);
+
+  // --- Phase 5: 条件付き Firebase 同期 ---
+  await conditionalUpload();
+
+  // --- Phase 6: アラーム・idle 検知の登録 ---
+  await chrome.alarms.create(ALARM_NAME_FLUSH, { periodInMinutes: 1 });
+  chrome.idle.setDetectionInterval(IDLE_DETECTION_INTERVAL_SECONDS);
+
+  // --- Phase 7: 現在のアクティブタブで計測開始（ポインタが空の場合） ---
+  await withPointerLock(async () => {
+    const currentPointer = await getStorage(STORAGE_KEY_ACTIVE_POINTER);
+    if (!currentPointer) {
+      try {
+        const [activeTab] = await chrome.tabs.query({
+          active: true,
+          lastFocusedWindow: true,
+        });
+        if (activeTab) {
+          const win = await chrome.windows.get(activeTab.windowId);
+          const appName = determineAppName(win, [activeTab]);
+          if (appName) {
+            await setStorage(STORAGE_KEY_ACTIVE_POINTER, {
+              domain: appName,
+              startTime: Date.now(),
+              triggerEvent: "initialize",
+            });
+            console.log(`[CBLink] 起動時計測開始: ${appName}`);
+          }
+        }
+      } catch (e) {
+        console.warn("[CBLink] 起動時アクティブタブ取得失敗:", e);
+      }
+    }
+  });
+
+  console.log("[CBLink] 初期化完了 deviceId:", deviceId);
+}
+
+// ---------------------------------------------------------------------------
+// イベントハンドラ
+// ---------------------------------------------------------------------------
+
+/**
+ * タブ切り替え時のハンドラ
+ * @param {{tabId: number, windowId: number}} activeInfo
+ */
+async function handleTabActivated(activeInfo) {
+  try {
+    const tab = await chrome.tabs.get(activeInfo.tabId);
+    const win = await chrome.windows.get(activeInfo.windowId);
+    const appName = determineAppName(win, [tab]);
+    if (appName) {
+      await switchDomain(appName, "onActivated");
+    }
+  } catch (e) {
+    console.warn("[CBLink] handleTabActivated エラー:", e);
+  }
+}
+
+/**
+ * タブ更新時のハンドラ（PWA ウィンドウ内の URL 変更を検知）
+ * @param {number} tabId
+ * @param {object} changeInfo
+ * @param {chrome.tabs.Tab} tab
+ */
+async function handleTabUpdated(tabId, changeInfo, tab) {
+  // URL 変更のみ対象
+  if (!changeInfo.url) return;
+
+  try {
+    // アクティブタブ以外は無視
+    const [activeTab] = await chrome.tabs.query({
+      active: true,
+      lastFocusedWindow: true,
+    });
+    if (!activeTab || activeTab.id !== tabId) return;
+
+    // PWA ウィンドウ（app/popup）のみ URL 変更を追跡
+    const win = await chrome.windows.get(tab.windowId);
+    if (win.type !== "app" && win.type !== "popup") return;
+
+    const appName = determineAppName(win, [tab]);
+    if (appName) {
+      await switchDomain(appName, "onUpdated");
+    }
+  } catch (e) {
+    console.warn("[CBLink] handleTabUpdated エラー:", e);
+  }
+}
+
+/**
+ * ウィンドウフォーカス変更時のハンドラ
+ * @param {number} windowId - フォーカスされたウィンドウのID
+ */
+async function handleWindowFocusChanged(windowId) {
+  // Chrome が非アクティブになった場合
+  if (windowId === chrome.windows.WINDOW_ID_NONE) {
+    await switchDomain(null, "onFocusChanged");
+    await conditionalUpload();
+    return;
+  }
+
+  try {
+    const win = await chrome.windows.get(windowId);
+    const tabs = await chrome.tabs.query({ windowId, active: true });
+    const appName = determineAppName(win, tabs);
+    if (appName) {
+      await switchDomain(appName, "onFocusChanged");
+    }
+  } catch (e) {
+    console.warn("[CBLink] handleWindowFocusChanged エラー:", e);
+  }
+}
+
+/**
+ * idle 状態変更時のハンドラ
+ * @param {"active"|"idle"|"locked"} newState
+ */
+async function handleIdleStateChanged(newState) {
+  if (newState === "active") {
+    // アクティブ復帰: 現在のタブで計測再開
+    try {
+      const [activeTab] = await chrome.tabs.query({
+        active: true,
+        lastFocusedWindow: true,
+      });
+      if (activeTab) {
+        const win = await chrome.windows.get(activeTab.windowId);
+        const appName = determineAppName(win, [activeTab]);
+        if (appName) {
+          await switchDomain(appName, "onIdleActive");
+        }
+      }
+    } catch (e) {
+      console.warn("[CBLink] handleIdleStateChanged(active) エラー:", e);
+    }
+  } else {
+    // idle or locked: 計測停止 + アップロード
+    await switchDomain(null, `onIdle_${newState}`);
+    await conditionalUpload();
+  }
+}
+
+/**
+ * 定期アラームハンドラ
+ * - 日次クリーンアップ
+ * - 進行中ポインタの中間計上（秒数を dailyUsage へ flush）
+ * - 条件付き Firebase アップロード
+ * @param {chrome.alarms.Alarm} alarm
+ */
+async function handleAlarm(alarm) {
+  if (alarm.name !== ALARM_NAME_FLUSH) return;
+
   // 1日1回のクリーンアップ（ADR-007）
   const today = getToday();
   const lastCleanupDate = await getStorage(STORAGE_KEY_LAST_CLEANUP_DATE);
@@ -376,66 +557,35 @@ async function flushOnAlarm() {
       : UNLINKED_BUFFER_RETENTION_DAYS;
 
     const dailyUsage = (await getStorage(STORAGE_KEY_DAILY_USAGE)) || {};
-    const pruned = pruneOldDates(dailyUsage, retentionDays);
-    await setStorage(STORAGE_KEY_DAILY_USAGE, pruned);
+    const prunedUsage = pruneOldDates(dailyUsage, retentionDays);
+    await setStorage(STORAGE_KEY_DAILY_USAGE, prunedUsage);
 
     const sentDates = (await getStorage(STORAGE_KEY_SENT_DATES)) || [];
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - retentionDays + 1);
-    const cleanedSentDates = sentDates.filter((d) => d >= getToday(cutoff));
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - retentionDays + 1);
+    const cleanedSentDates = sentDates.filter((d) => d >= getToday(cutoffDate));
     await setStorage(STORAGE_KEY_SENT_DATES, cleanedSentDates);
 
     await setStorage(STORAGE_KEY_LAST_CLEANUP_DATE, today);
     console.log("[CBLink] 日次クリーンアップ完了");
   }
 
-  const wasTracking = state.currentAppName;
-
-  if (wasTracking) {
-    await stopTracking();
-  }
-
-  await flushUsageData();
-
-  if (wasTracking) {
-    await startTracking(wasTracking);
-  }
-}
-
-// ---------------------------------------------------------------------------
-// イベントハンドラ
-// ---------------------------------------------------------------------------
-
-/**
- * ウィンドウフォーカス変更時のハンドラ
- * @param {number} windowId - フォーカスされたウィンドウのID
- */
-async function handleWindowFocusChanged(windowId) {
-  // 現在計測中なら停止
-  await stopTracking();
-
-  // Chrome が非アクティブになった場合
-  if (windowId === chrome.windows.WINDOW_ID_NONE) {
-    // 当日分含む未送信データを送信
-    await flushUsageData();
-    return;
-  }
-
-  try {
-    // ウィンドウ情報を取得
-    const win = await chrome.windows.get(windowId);
-    // ウィンドウ内のタブ一覧を取得（PWA 判定用）
-    const tabs = await chrome.tabs.query({ windowId, active: true });
-
-    const appName = determineAppName(win, tabs);
-    if (appName) {
-      await startTracking(appName);
-    } else {
-      console.log("[CBLink] appName を特定できないウィンドウ");
+  // 進行中ポインタの中間計上
+  await withPointerLock(async () => {
+    const pointer = await getStorage(STORAGE_KEY_ACTIVE_POINTER);
+    if (pointer) {
+      const now = Date.now();
+      await finalizePointer(pointer, now);
+      // ポインタの startTime を現在時刻にリセットして継続
+      await setStorage(STORAGE_KEY_ACTIVE_POINTER, {
+        ...pointer,
+        startTime: now,
+      });
     }
-  } catch (error) {
-    console.error("[CBLink] ウィンドウ情報取得エラー:", error);
-  }
+  });
+
+  // 条件付きアップロード
+  await conditionalUpload();
 }
 
 // ---------------------------------------------------------------------------
@@ -444,19 +594,18 @@ async function handleWindowFocusChanged(windowId) {
 
 /**
  * Popup からのステータス問い合わせに応答する
- * @param {object} message - メッセージオブジェクト
+ * @param {object} message
  * @param {chrome.runtime.MessageSender} _sender
- * @param {function} sendResponse - 応答関数
+ * @param {function} sendResponse
  * @returns {boolean} 非同期応答の場合 true
  */
 function handleMessage(message, _sender, sendResponse) {
   if (message.type === "getStatus") {
-    // dailyUsage の今日の合計を取得（非同期）
     (async () => {
       const dailyUsage = await getStorage(STORAGE_KEY_DAILY_USAGE);
+      const pointer = await getStorage(STORAGE_KEY_ACTIVE_POINTER);
       const today = getToday();
       const todayUsage = dailyUsage?.[today] || {};
-      // 各アプリの秒数を分単位に切り捨ててから合計する
       const todayTotalSeconds = Object.values(todayUsage).reduce(
         (sum, entry) => {
           const seconds = entry.totalSeconds || 0;
@@ -466,9 +615,10 @@ function handleMessage(message, _sender, sendResponse) {
       );
 
       const pairingStatus = await getStorage(STORAGE_KEY_PAIRING_STATUS);
+      const deviceId = await getStorage(STORAGE_KEY_DEVICE_ID);
       sendResponse({
-        currentAppName: state.currentAppName,
-        deviceId: state.deviceId,
+        currentAppName: pointer?.domain || null,
+        deviceId,
         todayTotalSeconds,
         todayApps: todayUsage,
         pairingStatus,
@@ -486,15 +636,20 @@ function handleMessage(message, _sender, sendResponse) {
 // Service Worker 起動時に初期化
 initialize();
 
+// タブ切り替え
+chrome.tabs.onActivated.addListener(handleTabActivated);
+
+// タブ URL 変更（PWA ウィンドウのドメイン変更検知）
+chrome.tabs.onUpdated.addListener(handleTabUpdated);
+
 // ウィンドウフォーカス変更
 chrome.windows.onFocusChanged.addListener(handleWindowFocusChanged);
 
+// idle 状態変更（idle / locked / active）
+chrome.idle.onStateChanged.addListener(handleIdleStateChanged);
+
 // 定期アラーム（60秒間隔）
-chrome.alarms.onAlarm.addListener(async (alarm) => {
-  if (alarm.name === ALARM_NAME_FLUSH) {
-    await flushOnAlarm();
-  }
-});
+chrome.alarms.onAlarm.addListener(handleAlarm);
 
 // Popup からのメッセージ
 chrome.runtime.onMessage.addListener(handleMessage);

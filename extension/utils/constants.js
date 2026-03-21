@@ -57,3 +57,22 @@ export const STORAGE_KEY_LAST_CLEANUP_DATE = "lastCleanupDate";
 
 /** chrome.storage.sync のキー: デバイスバックアップ（deviceId 復旧用） */
 export const SYNC_KEY_DEVICE_BACKUPS = "deviceBackups";
+
+// ---------------------------------------------------------------------------
+// S-redesign: ポインタ管理・条件付き同期
+// ---------------------------------------------------------------------------
+
+/** chrome.storage のキー: アクティブポインタ（現在計測中のドメイン情報） */
+export const STORAGE_KEY_ACTIVE_POINTER = "activePointer";
+
+/** chrome.storage のキー: 最終 Firebase アップロード時刻 (ms) */
+export const STORAGE_KEY_LAST_UPLOAD_TIMESTAMP = "lastUploadTimestamp";
+
+/** Firebase アップロード最小間隔 (ms) — 59秒 */
+export const UPLOAD_INTERVAL_MS = 59_000;
+
+/** ポインタが「古い」と判定する閾値 (ms) — 5分 */
+export const MAX_POINTER_STALENESS_MS = 300_000;
+
+/** idle 検知の閾値 (秒) */
+export const IDLE_DETECTION_INTERVAL_SECONDS = 60;
