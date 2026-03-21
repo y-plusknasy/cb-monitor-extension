@@ -33,6 +33,8 @@ import {
   UPLOAD_INTERVAL_MS,
   MAX_POINTER_STALENESS_MS,
   IDLE_DETECTION_INTERVAL_SECONDS,
+  STORAGE_KEY_IDLE_START_TIMESTAMP,
+  IDLE_TOLERANCE_MS,
   DEFAULT_API_ENDPOINT,
 } from "../utils/constants.js";
 import {
@@ -201,6 +203,50 @@ async function switchDomain(newAppName, triggerEvent) {
       console.log(`[CBLink] 計測停止 (${triggerEvent})`);
     }
   });
+}
+
+// ---------------------------------------------------------------------------
+// idle 状態の共通解決
+// ---------------------------------------------------------------------------
+
+/**
+ * idle 状態を解決する — 各イベントハンドラの冒頭で呼び出す。
+ *
+ * STORAGE_KEY_IDLE_START_TIMESTAMP が記録されている場合:
+ * - IDLE_TOLERANCE_MS 以内 → 短時間 idle として計測継続
+ * - IDLE_TOLERANCE_MS 超過 → idle 開始時点でポインタを確定・クリア
+ *
+ * @returns {Promise<"long"|"short"|"none">}
+ *   "long"  = 長時間 idle 超過 — ポインタは idle 開始時点で確定・クリア済み
+ *   "short" = 短時間 idle — 計測継続
+ *   "none"  = idle 状態ではなかった
+ */
+async function resolveIdleState() {
+  const idleStart = await getStorage(STORAGE_KEY_IDLE_START_TIMESTAMP);
+  if (!idleStart) return "none";
+
+  const idleDuration = Date.now() - idleStart;
+  await setStorage(STORAGE_KEY_IDLE_START_TIMESTAMP, null);
+
+  if (idleDuration > IDLE_TOLERANCE_MS) {
+    // 長時間 idle: idle 開始時点でポインタを確定・クリア
+    await withPointerLock(async () => {
+      const pointer = await getStorage(STORAGE_KEY_ACTIVE_POINTER);
+      if (pointer) {
+        await finalizePointer(pointer, idleStart);
+        await setStorage(STORAGE_KEY_ACTIVE_POINTER, null);
+      }
+    });
+    console.log(
+      `[CBLink] 長時間 idle 解決 (${Math.round(idleDuration / 1000)}秒)`,
+    );
+    return "long";
+  }
+
+  console.log(
+    `[CBLink] 短時間 idle 復帰 (${Math.round(idleDuration / 1000)}秒) — 計測継続`,
+  );
+  return "short";
 }
 
 // ---------------------------------------------------------------------------
@@ -442,6 +488,7 @@ async function initialize() {
  */
 async function handleTabActivated(activeInfo) {
   try {
+    await resolveIdleState();
     const tab = await chrome.tabs.get(activeInfo.tabId);
     const win = await chrome.windows.get(activeInfo.windowId);
     const appName = determineAppName(win, [tab]);
@@ -475,6 +522,7 @@ async function handleTabUpdated(tabId, changeInfo, tab) {
     const win = await chrome.windows.get(tab.windowId);
     if (win.type !== "app" && win.type !== "popup") return;
 
+    await resolveIdleState();
     const appName = determineAppName(win, [tab]);
     if (appName) {
       await switchDomain(appName, "onUpdated");
@@ -491,12 +539,14 @@ async function handleTabUpdated(tabId, changeInfo, tab) {
 async function handleWindowFocusChanged(windowId) {
   // Chrome が非アクティブになった場合
   if (windowId === chrome.windows.WINDOW_ID_NONE) {
+    await resolveIdleState();
     await switchDomain(null, "onFocusChanged");
     await conditionalUpload();
     return;
   }
 
   try {
+    await resolveIdleState();
     const win = await chrome.windows.get(windowId);
     const tabs = await chrome.tabs.query({ windowId, active: true });
     const appName = determineAppName(win, tabs);
@@ -510,29 +560,44 @@ async function handleWindowFocusChanged(windowId) {
 
 /**
  * idle 状態変更時のハンドラ
+ *
+ * 動画視聴や画面内容をメモしている間など、操作がなくても利用中の
+ * ケースに対応するため、idle→active 間の経過時間で判定する:
+ * - IDLE_TOLERANCE_MS 以内 → idle 期間も含めて継続とみなす
+ * - IDLE_TOLERANCE_MS 超過 → idle 開始時点で計測を打ち切り、復帰時に再開
+ *
  * @param {"active"|"idle"|"locked"} newState
  */
 async function handleIdleStateChanged(newState) {
   if (newState === "active") {
-    // アクティブ復帰: 現在のタブで計測再開
-    try {
-      const [activeTab] = await chrome.tabs.query({
-        active: true,
-        lastFocusedWindow: true,
-      });
-      if (activeTab) {
-        const win = await chrome.windows.get(activeTab.windowId);
-        const appName = determineAppName(win, [activeTab]);
-        if (appName) {
-          await switchDomain(appName, "onIdleActive");
+    const result = await resolveIdleState();
+
+    if (result === "long" || result === "none") {
+      // long: 長時間 idle 解決済み — ポインタはクリア済みなので再開
+      // none: idleStart 未記録（SW 再起動等）— 安全のため計測を更新
+      try {
+        const [activeTab] = await chrome.tabs.query({
+          active: true,
+          lastFocusedWindow: true,
+        });
+        if (activeTab) {
+          const win = await chrome.windows.get(activeTab.windowId);
+          const appName = determineAppName(win, [activeTab]);
+          if (appName) {
+            const trigger =
+              result === "long" ? "onIdleActive_long" : "onIdleActive";
+            await switchDomain(appName, trigger);
+          }
         }
+      } catch (e) {
+        console.warn("[CBLink] handleIdleStateChanged(active) エラー:", e);
       }
-    } catch (e) {
-      console.warn("[CBLink] handleIdleStateChanged(active) エラー:", e);
     }
+    // result === "short": 短時間 idle — 計測継続、何もしない
   } else {
-    // idle or locked: 計測停止 + アップロード
-    await switchDomain(null, `onIdle_${newState}`);
+    // idle or locked: タイムスタンプを記録（計測は止めない）
+    await setStorage(STORAGE_KEY_IDLE_START_TIMESTAMP, Date.now());
+    console.log(`[CBLink] idle 開始記録 (${newState})`);
     await conditionalUpload();
   }
 }
@@ -571,16 +636,31 @@ async function handleAlarm(alarm) {
   }
 
   // 進行中ポインタの中間計上
+  // idle 中の場合は idle 開始時点までの利用時間のみ確定し、
+  // ポインタを idle 開始時刻で凍結する（idle 時間の誤計上を防止）
   await withPointerLock(async () => {
     const pointer = await getStorage(STORAGE_KEY_ACTIVE_POINTER);
     if (pointer) {
       const now = Date.now();
-      await finalizePointer(pointer, now);
-      // ポインタの startTime を現在時刻にリセットして継続
-      await setStorage(STORAGE_KEY_ACTIVE_POINTER, {
-        ...pointer,
-        startTime: now,
-      });
+      const idleStart = await getStorage(STORAGE_KEY_IDLE_START_TIMESTAMP);
+
+      if (idleStart && pointer.startTime < idleStart) {
+        // idle 中（初回）: startTime 〜 idleStart の利用時間を確定し、
+        // startTime を idleStart に固定して以降のアラームでは 0秒になるようにする
+        await finalizePointer(pointer, idleStart);
+        await setStorage(STORAGE_KEY_ACTIVE_POINTER, {
+          ...pointer,
+          startTime: idleStart,
+        });
+      } else if (!idleStart) {
+        // 通常時（idle でない）: 現在時刻まで確定し、startTime をリセット
+        await finalizePointer(pointer, now);
+        await setStorage(STORAGE_KEY_ACTIVE_POINTER, {
+          ...pointer,
+          startTime: now,
+        });
+      }
+      // idle 中で pointer.startTime >= idleStart: 既に精算済み、何もしない
     }
   });
 

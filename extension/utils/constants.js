@@ -76,3 +76,9 @@ export const MAX_POINTER_STALENESS_MS = 300_000;
 
 /** idle 検知の閾値 (秒) */
 export const IDLE_DETECTION_INTERVAL_SECONDS = 60;
+
+/** chrome.storage のキー: idle 開始タイムスタンプ (ms) */
+export const STORAGE_KEY_IDLE_START_TIMESTAMP = "idleStartTimestamp";
+
+/** idle 復帰時に「継続」とみなす最大時間 (ms) — 5分 */
+export const IDLE_TOLERANCE_MS = 300_000;
