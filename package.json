@@ -1,0 +1,14 @@
+{
+  "private": true,
+  "name": "cb-link",
+  "type": "module",
+  "description": "CB Link — Chrome ブラウザ・PWA 利用時間モニター",
+  "componentVersions": {
+    "extension": "1.1.0",
+    "functions": "1.1.0",
+    "mobile": "1.0.0"
+  },
+  "scripts": {
+    "update-version": "node scripts/update-version.js"
+  }
+}
