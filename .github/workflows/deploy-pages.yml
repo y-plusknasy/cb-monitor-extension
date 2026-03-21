@@ -3,7 +3,7 @@ name: Deploy Pages
 on:
   push:
     tags:
-      - "docs/v*"
+      - "docs/*"
 
 permissions:
   pages: write
